@@ -5,7 +5,7 @@ description: >
   Provides server setup, agent configuration, and extraction patterns using OpenAI-compatible
   API with local models. Use when user wants local inference, offline AI, or self-hosted LLMs.
 license: MIT
-compatibility: Requires Python 3.10+, LM Studio, pydantic-ai, lmstudio Python package
+compatibility: Requires Python 3.10+, LM Studio, pydantic-ai. The `lmstudio` Python package is optional (CLI-based helpers used by default).
 metadata:
   version: "1.0.0"
   author: opencode
@@ -32,8 +32,10 @@ Do **not** use this skill for:
 ## Prerequisites
 
 ```bash
-uv add "pydantic-ai-slim[openai]" lmstudio python-dotenv
+uv add "pydantic-ai-slim[openai]" python-dotenv
 ```
+
+The `lmstudio` Python package is **optional** — by default, CLI-based helpers are used. If you prefer the Python SDK approach, add it with `uv add lmstudio`.
 
 Ensure LM Studio is installed with a downloaded model.
 
@@ -41,38 +43,19 @@ Ensure LM Studio is installed with a downloaded model.
 
 ### Ensure Model is Loaded
 
-Always call this before creating any Pydantic AI agent:
+Always call this before creating any Pydantic AI agent. The helper functions are in `references/lmstudio_utils.py`:
 
 ```python
-# lm_server.py
-import subprocess
-import time
-import lmstudio as lms
+# lm_server.py (CLI-based, no extra package needed)
+import sys
+sys.path.insert(0, "path/to/references")
+from lmstudio_utils import ensure_model_loaded
 
-def ensure_model_loaded(model_name: str) -> None:
-    """Ensure LM Studio server is running and model_name is loaded."""
-    # Check server status
-    result = subprocess.run(
-        ["lms", "server", "status"],
-        capture_output=True,
-        text=True,
-    )
-    if "running" not in (result.stdout + result.stderr).lower():
-        subprocess.Popen(["lms", "server", "start"])
-        for _ in range(6):
-            time.sleep(5)
-            if "running" in subprocess.run(
-                ["lms", "server", "status"],
-                capture_output=True,
-                text=True,
-            ).stdout.lower():
-                break
-
-    # Check if model loaded
-    loaded = lms.list_loaded_models()
-    if not any(model_name in m.identifier for m in loaded):
-        client = lms.get_default_client()
-        client.llm.load_new_instance(model_name)
+def ensure_model_loaded(model_name: str) -> str:
+    """Ensure LM Studio server is running and model is loaded. Returns model identifier."""
+    from lmstudio_utils import ensure_server_running, load_model
+    ensure_server_running()
+    return load_model(model_name)
 ```
 
 ### Create a Structured Output Agent
@@ -294,12 +277,35 @@ Ensure the model is downloaded in LM Studio UI and the model key matches exactly
 
 LM Studio CLI (`lms`) must be on PATH. On macOS, it should be installed via Homebrew or added to PATH.
 
+### Alternative: Python SDK Approach
+
+If you installed the optional `lmstudio` package, you can use the Python SDK instead:
+
+```bash
+uv add lmstudio
+```
+
+```python
+import lmstudio as lms
+
+def ensure_model_loaded_sdk(model_name: str) -> None:
+    """SDK-based model loading (requires lmstudio package)."""
+    client = lms.get_default_client()
+
+    if not any(model_name in m.identifier for m in lms.list_loaded_models()):
+        client.llm.load_new_instance(model_name)
+```
+
+The CLI approach is preferred — it has no extra dependency and provides the same functionality.
+
 ## Generic File Structure Template
 
 ```
 project/
 ├── .env                    # LMSTUDIO_BASE_URL, LOCAL_MODEL_INFERENCE
-├── lm_server.py           # ensure_model_loaded()
+├── references/
+│   └── lmstudio_utils.py   # ensure_server_running(), load_model()
+├── lm_server.py           # ensure_model_loaded() wrapper
 ├── models.py               # Pydantic output schemas
 ├── prompts.py             # Agent instructions
 ├── extractors/
@@ -376,7 +382,8 @@ plan = generate_edit_plan(cv, jd, s)
 ```
 project/
 ├── .env
-├── lm_server.py
+├── references/
+│   └── lmstudio_utils.py   # Server/model helpers
 ├── models.py          # Project-specific schemas
 ├── prompts.py         # Custom instructions per extraction
 ├── cv_extractor.py    # CV extraction logic
