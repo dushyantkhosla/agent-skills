@@ -1,11 +1,11 @@
 ---
 name: freellm
-description: Lightweight free LLM pool — interleaves free endpoints (openrouter/auto, kilo-auto/free, ollama cloud, vercel ai gateway) with in-memory circuit breaker. Use when you need a single free provider with fallback, no paid models.
+description: Lightweight free LLM pool — interleaves free endpoints (openrouter/auto, kilo-auto/free, ollama cloud, vercel ai gateway, groq, cerebras, google gemini) with in-memory circuit breaker. Use when you need a single free provider with fallback, no paid models.
 license: MIT
 compatibility: Requires Python 3.11+, pydantic-ai, and at least one of the free providers configured.
 metadata:
   author: dushyantkhosla
-  version: "1.0"
+  version: "1.1"
 ---
 
 # freellm — Free LLM Pool
@@ -13,6 +13,8 @@ metadata:
 Interleaved free LLM pool. Single generator, no paid models, in-memory circuit breaker.
 
 Unlike `frugal-lm` (batch pipelines with multi-tier fallback), this is a lightweight singleton pool for single-call use cases where you just want "any working free model".
+
+**This is not a library** — it documents patterns. Agents implement the variant they need (cursor vs pipeline, raw calls vs structured output, etc.).
 
 ## File Structure
 
@@ -65,6 +67,11 @@ SINGLE_PROVIDERS: dict[str, ProviderConfig] = {
         provider_type="openai",
         base_url=None,  # resolved from KILO_BASE_URL
     ),
+    "groq": ProviderConfig(
+        api_key_env="GROQ_API_KEY",
+        provider_type="openai",
+        base_url="https://api.groq.com/openai/v1",
+    ),
 }
 
 # Multi-model free providers (we shuffle the pool)
@@ -78,6 +85,21 @@ MULTI_PROVIDERS: dict[str, ProviderConfig] = {
         api_key_env="VERCEL_AI_GATEWAY_API_KEY",
         provider_type="vercel",
         base_url=None,
+    ),
+    "groq": ProviderConfig(
+        api_key_env="GROQ_API_KEY",
+        provider_type="openai",
+        base_url="https://api.groq.com/openai/v1",
+    ),
+    "cerebras": ProviderConfig(
+        api_key_env="CEREBRAS_API_KEY",
+        provider_type="openai",
+        base_url="https://api.cerebras.ai/v1",
+    ),
+    "google": ProviderConfig(
+        api_key_env="GOOGLE_API_KEY",
+        provider_type="openai",
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
     ),
 }
 
@@ -105,6 +127,24 @@ MODEL_POOLS: dict[str, list[str]] = {
         "zai/glm-4.7-flash",
         "openai/gpt-5-nano",
         "google/gemini-2.5-flash-lite",
+    ],
+    "groq": [
+        # Models from test-groq.py (verified free on Groq, 2025-05-15)
+        "openai/gpt-oss-120b",
+        "qwen/qwen3-32b",
+        "llama-3.3-70b-versatile",
+    ],
+    "cerebras": [
+        # Verified accessible free models (tested 2026-05-22)
+        "gpt-oss-120b",
+        "qwen-3-235b-a22b-instruct-2507",
+        "llama3.1-8b",
+        "zai-glm-4.7",
+    ],
+    "google": [
+        # Free tier models via OpenAI-compatible endpoint (tested 2026-05-22)
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
     ],
 }
 
@@ -167,7 +207,11 @@ class FreeLLMPool:
             if not api_key or _is_blocked(name):
                 continue
             provider = _build_provider(config.base_url, api_key, config.provider_type)
-            model_name = "openrouter/auto" if name == "openrouter" else "kilo-auto/free"
+            model_name = {
+                "openrouter": "openrouter/auto",
+                "kilo": "kilo-auto/free",
+                "groq": "llama-3.3-70b-versatile",
+            }.get(name, "openrouter/auto")
             entries.append(
                 ModelEntry(
                     label=name,
@@ -266,6 +310,64 @@ async def call_free_structured(
 
 ---
 
+## Batch Processing with Shared Cursor
+
+For single-call use cases, `call_free_structured()` is sufficient. For batch jobs with concurrent workers, use a **shared cursor** so callers naturally round-robin across providers instead of all hitting the same first entry:
+
+```python
+pool = FreeLLMPool()
+cursor = iter(pool.entries())  # single cursor, shared across tasks
+cursor_lock = asyncio.Lock()
+
+async def next_model() -> ModelEntry:
+    async with cursor_lock:
+        return next(cursor)  # round-robins across providers naturally
+
+async def classify_one(job):
+    entry = await next_model()
+    agent = Agent(model=entry.model, ...)
+    return await agent.run(job.text)
+```
+
+**References**: For full batch pipelines with load balancing, semaphores, and mode chains, see the `frugal-lm` skill. The shared-cursor pattern here is the lightweight alternative — one pool, multiple consumers.
+
+---
+
+## When to Use freellm vs frugal-lm
+
+| You need... | Use |
+|-------------|-----|
+| Single call, any free model works | `freellm.call_free_structured()` |
+| Batch job, shared cursor, simple | `freellm` + shared cursor pattern |
+| Batch job, mode chains, load balancing, paid fallback | `frugal-lm` |
+| Per-call tier selection (free → local → paid) | `frugal-lm` |
+
+---
+
+## Known Circuit Breaker Limitations
+
+The built-in circuit breaker protects against cascading failures but has rough edges. Agents should handle these when implementing freellm:
+
+- **429 (rate limit) counts as failure** — In production, agents should catch 429s, sleep 1-2s, and retry the same model *without* calling `record_failure()`. Otherwise a brief rate limit burst trips the breaker.
+- **Post-cooldown stuck state** — After 60s, the provider is unblocked but its failure count remains at 5. One more failure immediately re-blocks it. Agents should reset the count after cooldown expires, or call `pool.reset()` periodically.
+- **401/403 (auth) burns 5 failures** — Auth errors should probably trip the circuit instantly, not burn retries.
+- **Provider-level only** — One bad Ollama model blocks all 14. For fine-grained control, agents can track model-level failures separately.
+
+---
+
+## Extension Points for Agents
+
+When implementing freellm, the agent may want to:
+
+- **Filter the pool by capability** — For simple text classification, exclude vision models (`qwen3-vl:235b`, etc.) and >100B params to reduce latency.
+- **Add shared cursor API** — Wrap `entries()` in a thread-safe cursor with `asyncio.Lock`.
+- **Add rate-limit backoff** — Catch 429, sleep, retry; only 5xx/timeout should count as failures.
+- **Add per-tier timeouts** — 15s for small models, 30s for large models.
+- **Add cooldown-reset logic** — Clear failure counts when the block period expires so providers get a fair retry.
+- **Compose with frugal-lm** — The pool + cursor pattern can be dropped into a `frugal-lm`-style batch runner when tiered fallback is needed.
+
+---
+
 ## Env Config
 
 ```bash
@@ -274,15 +376,21 @@ OPENROUTER_API_KEY=sk-or-v1-...
 KILO_API_KEY=eyJhbGci...
 OLLAMA_API_KEY=...
 VERCEL_AI_GATEWAY_API_KEY=...
+GROQ_API_KEY=gsk_your_groq_api_key
+CEREBRAS_API_KEY=csk_your_cerebras_api_key
+GOOGLE_API_KEY=AIzaSy...
 
 # Optional overrides
 KILO_BASE_URL=https://api.kilo.ai/v1          # kilo default
 
 # Optional model overrides (comma-separated, shuffled at runtime)
 # Default Ollama free models (14 verified accessible models)
-# Full list: gemma4:31b,gpt-oss:120b,gpt-oss:20b,minimax-m2,minimax-m2.5,ministral-3:14b,devstral-2:123b,devstral-small-2:24b,nemotron-3-nano:30b,nemotron-3-super,qwen3-coder-next,qwen3-next:80b,qwen3-vl:235b-instruct
+# Full list: gemma4:31b,gpt-oss:120b,gpt-oss:20b,minimax-m2,minimax-m2.5,ministral-3:14b,devstral-2:123b,devstral-small-2:24b,nemotron-3-nano:30b,nemotron-3-super,qwen3-coder-next,qwen3-next:80b,qwen3-vl:235b,qwen3-vl:235b-instruct
 OLLAMA_MODELS=gpt-oss:120b,gemma4:31b,ministral-3:14b,minimax-m2.5,minimax-m2,devstral-2:123b,qwen3-next:80b
 VERCEL_MODELS=deepseek/deepseek-v4-flash,xiaomi/mimo-v2-flash,openai/gpt-5-nano,google/gemini-2.5-flash-lite
+GROQ_MODELS=openai/gpt-oss-120b,qwen/qwen3-32b,llama-3.3-70b-versatile
+CEREBRAS_MODELS=gpt-oss:120b,qwen-3-235b-a22b-instruct-2507,llama3.1-8b,zai-glm-4.7
+GOOGLE_MODELS=gemini-2.5-flash-lite,gemini-2.5-flash
 ```
 
 ---
@@ -333,6 +441,35 @@ async def fetch_accessible_free_models() -> list[str]:
 
 Then update `MODEL_POOLS["ollama"]` with the result, or override via `OLLAMA_MODELS` env var at runtime.
 
+### Model Discovery — Groq
+
+```python
+import httpx, os
+
+r = httpx.get(
+    "https://api.groq.com/openai/v1/models",
+    headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
+)
+for m in r.json()["data"]:
+    if m["active"]:
+        print(m["id"])
+```
+
+### Model Discovery — Cerebras
+
+```python
+import requests
+
+r = requests.get(
+    "https://api.cerebras.ai/v1/models",
+    headers={"Authorization": f"Bearer {os.environ['CEREBRAS_API_KEY']}"},
+)
+for m in r.json()["data"]:
+    print(m["id"])
+```
+
+Update `MODEL_POOLS["cerebras"]` with the results, or override via `CEREBRAS_MODELS` env var at runtime.
+
 ### Test Scripts
 
 Two standalone scripts in this directory let you discover accessible free models:
@@ -351,7 +488,9 @@ Results are saved as JSON alongside the scripts.
 ## Design Rules
 
 - **No paid models** — only free-tier endpoints
-- **Single-entry rotation** — `openrouter/auto` and `kilo-auto/free` rotate internally via the provider; we treat them as single entries
-- **Interleaved multi-model** — Ollama and Vercel have explicit model pools; entries are shuffled once, then interleaved (one from each per round)
+- **Single-entry rotation** — `openrouter/auto`, `kilo-auto/free`, and `llama-3.3-70b-versatile` rotate internally via the provider; we treat them as single entries
+- **Interleaved multi-model** — Ollama, Vercel, Groq, Cerebras, and Google have explicit model pools; entries are shuffled once, then interleaved (one from each per round)
 - **Circuit breaker per provider** — blocks provider for 60s after 5 consecutive failures; pool auto-rebuilds on next `entries()` call
 - **Pool is stateless** — `FreeLLMPool()` is a lightweight factory; create a new instance or call `.reset()` to rebuild
+- **Not a library** — this skill documents patterns; agents implement the variant they need (cursor vs pipeline, raw calls vs structured output, etc.)
+- **Composable with frugal-lm** — the pool + cursor pattern can be dropped into a `frugal-lm`-style batch runner when tiered fallback is needed

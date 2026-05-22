@@ -1,7 +1,55 @@
 {
   "version": 3,
-  "skills": {},
-  "dismissed": {},
+  "skills": {
+    "using-git-worktrees": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/obra/superpowers.git",
+      "skillPath": "skills/using-git-worktrees/SKILL.md",
+      "skillFolderHash": "13a9643fb9e4b236173f7d4b56b15dac10394f1b",
+      "installedAt": "2026-05-05T10:27:08.787Z",
+      "updatedAt": "2026-05-05T10:27:08.787Z"
+    },
+    "finishing-a-development-branch": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/obra/superpowers.git",
+      "skillPath": "skills/finishing-a-development-branch/SKILL.md",
+      "skillFolderHash": "782e09faa5dcf7e9a7a173bd14b5622e35b80169",
+      "installedAt": "2026-05-05T10:28:17.883Z",
+      "updatedAt": "2026-05-05T10:28:17.883Z"
+    },
+    "subagent-driven-development": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/obra/superpowers.git",
+      "skillPath": "skills/subagent-driven-development/SKILL.md",
+      "skillFolderHash": "73b43347c1bdc10f6ab81a5cdb036dd1c8098cc0",
+      "installedAt": "2026-05-05T10:29:11.766Z",
+      "updatedAt": "2026-05-05T10:29:11.766Z"
+    },
+    "api-security-best-practices": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/sickn33/antigravity-awesome-skills.git",
+      "skillPath": "skills/api-security-best-practices/SKILL.md",
+      "skillFolderHash": "c31fde9c191176614c6f7fe5571d24a25e7fa15d",
+      "installedAt": "2026-05-05T10:30:49.592Z",
+      "updatedAt": "2026-05-05T10:30:49.592Z"
+    },
+    "telegram-bot-builder": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/sickn33/antigravity-awesome-skills.git",
+      "skillPath": "skills/telegram-bot-builder/SKILL.md",
+      "skillFolderHash": "f3cf2c57132cbd4486d5ec39a24913bf2e3e484b",
+      "installedAt": "2026-05-05T10:32:06.170Z",
+      "updatedAt": "2026-05-05T10:32:06.170Z"
+    }
+  },
+  "dismissed": {
+    "findSkillsPrompt": true
+  },
   "lastSelectedAgents": [
     "amp",
     "antigravity",
