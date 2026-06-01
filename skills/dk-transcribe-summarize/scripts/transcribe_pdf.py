@@ -80,10 +80,10 @@ def main() -> None:
         model_loaded = True
 
         print("Generating 100-word summary (local model)...")
-        summary_100 = verify_summary(summarize(transcript, 100), "100-word")
+        summary_100 = verify_summary(summarize(transcript, 100), "100-word", transcript=transcript, words=100)
 
         print("Generating 400-word summary (local model)...")
-        summary_400 = verify_summary(summarize(transcript, 400), "400-word")
+        summary_400 = verify_summary(summarize(transcript, 400), "400-word", transcript=transcript, words=400)
 
         base_name = sanitize_filename(title)
         pdf_path = out_dir / f"{base_name}.pdf"

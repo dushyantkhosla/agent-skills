@@ -144,16 +144,30 @@ def _has_thinking(text: str) -> bool:
     return any(w in t for w in triggers)
 
 
-def verify_summary(summary: str, label: str) -> str:
-    """Verify summary is clean of CoT contamination."""
+def verify_summary(summary: str, label: str, transcript: str = "", words: int = 0) -> str:
+    """Verify summary is clean of CoT contamination. Retries once if contaminated."""
     if not _has_thinking(summary):
         return summary
+    if not transcript or not words:
+        print(f"  ⚠️  {label} has CoT contamination (no retry context available).")
+        return _strip_thinking(summary)
     print(f"  ⚠️  {label} has CoT contamination, retrying with strict prompt...")
-    return summary
+    strict_prompt = (
+        f"Write a {words}-word summary of the transcript below. "
+        f"Rules: Output ONLY the summary text. No preamble, no analysis, "
+        f"no thinking, no numbered steps, no meta-commentary."
+        f"\n\nTRANSCRIPT:\n{transcript}"
+    )
+    result = local_chat(strict_prompt, max_tokens=2000)
+    if _has_thinking(result):
+        print(f"  ⚠️  {label} retry still contaminated; using stripped version.")
+        return _strip_thinking(result)
+    return result
 
 
 def local_chat(prompt: str, max_tokens: int = 2000, temperature: float = 0.3) -> str:
     """Call the locally-loaded LLM via LM Studio's OpenAI-compatible API."""
+    import time
     body = {
         "model": LOCAL_MODEL_NAME,
         "messages": [{"role": "user", "content": prompt}],
@@ -163,17 +177,26 @@ def local_chat(prompt: str, max_tokens: int = 2000, temperature: float = 0.3) ->
     if "qwen" in LOCAL_MODEL_NAME.lower():
         body["chat_template_kwargs"] = {"enable_thinking": False}
 
-    resp = requests.post(
-        f"{LMSTUDIO_URL}/chat/completions",
-        headers={"Content-Type": "application/json"},
-        json=body,
-        timeout=300,
-    )
-    if not resp.ok:
-        print(f"LM Studio error {resp.status_code}: {resp.text[:500]}", file=sys.stderr)
+    for attempt in range(3):
+        resp = requests.post(
+            f"{LMSTUDIO_URL}/chat/completions",
+            headers={"Content-Type": "application/json"},
+            json=body,
+            timeout=300,
+        )
+        if resp.ok:
+            content = resp.json()["choices"][0]["message"]["content"] or ""
+            return _strip_thinking(content)
+        # If model was unloaded, re-load and retry
+        err_text = resp.text[:500]
+        if resp.status_code == 400 and "unloaded" in err_text.lower():
+            print(f"  Model unloaded; reloading (attempt {attempt+1}/3)...", file=sys.stderr)
+            _lms(["load", LOCAL_MODEL_NAME, "--ttl", "900"])
+            time.sleep(3)
+            continue
+        print(f"LM Studio error {resp.status_code}: {err_text}", file=sys.stderr)
         resp.raise_for_status()
-    content = resp.json()["choices"][0]["message"]["content"] or ""
-    return _strip_thinking(content)
+    raise RuntimeError("LM Studio: model could not be loaded after 3 retries")
 
 
 def summarize(transcript: str, words: int) -> str:

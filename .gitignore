@@ -1,0 +1,74 @@
+# ============================================
+# Security: Environment & Secrets
+# ============================================
+.env
+.env.*
+!.env.example
+**/*.env
+credentials.json
+secrets.json
+*.pem
+*.key
+*.cert
+*.p12
+
+# ============================================
+# Dependencies
+# ============================================
+node_modules/
+**/node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ============================================
+# Python
+# ============================================
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+
+# ============================================
+# OS & Editor Files
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ============================================
+# Pi / Skills
+# ============================================
+.skill-lock.json
+**/.skill-lock.json
+
+# ============================================
+# Logs & Temp Files
+# ============================================
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# ============================================
+# Debug & Dev
+# ============================================
+debug-*.png
+.headless-profile/
+.vscode/
+.idea/
+*.code-workspace
