@@ -38,14 +38,12 @@ import time
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.vercel import VercelProvider
-from pydantic_ai.settings import ModelSettings
 
 
 @dataclass
 class ModelEntry:
     label: str
     model: OpenAIChatModel
-    settings: ModelSettings
 
 
 @dataclass
@@ -216,7 +214,6 @@ class FreeLLMPool:
                 ModelEntry(
                     label=name,
                     model=OpenAIChatModel(model_name, provider=provider),
-                    settings=ModelSettings(timeout=30.0),
                 )
             )
 
@@ -232,7 +229,6 @@ class FreeLLMPool:
                 ModelEntry(
                     label=f"{name}:{m}",
                     model=OpenAIChatModel(m, provider=provider),
-                    settings=ModelSettings(timeout=30.0),
                 )
                 for m in self._rng.sample(models, len(models))
             ]
@@ -271,10 +267,14 @@ class FreeLLMPool:
 
 ## Client
 
+Uses PydanticAI's built-in `FallbackModel` — tries each model in sequence, falls back on failure. No manual loop needed.
+
 ```python
 from typing import TypeVar, Type
 from pydantic import BaseModel
 from pydantic_ai import Agent
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.exceptions import FallbackExceptionGroup
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -291,21 +291,30 @@ async def call_free_structured(
     Caller handles None (skip, log, retry later).
     """
     pool = pool or FreeLLMPool()
-    for entry in pool.entries():
-        agent = Agent(
-            model=entry.model,
-            model_settings=entry.settings,
-            retries=retries,
-            output_type=output_type,
-            system_prompt=system_prompt,
-        )
-        try:
-            result = await agent.run(user_prompt=user_prompt)
-            return result.output
-        except Exception:
+    entries = list(pool.entries())
+    if not entries:
+        return None
+
+    model = (
+        FallbackModel(entries[0].model, *[e.model for e in entries[1:]], fallback_on=(Exception,))
+        if len(entries) > 1
+        else entries[0].model
+    )
+
+    agent = Agent(
+        model=model,
+        retries=retries,
+        output_type=output_type,
+        system_prompt=system_prompt,
+    )
+    try:
+        result = await agent.run(user_prompt=user_prompt)
+        return result.output
+    except FallbackExceptionGroup:
+        # All models failed — record failures for circuit breaker
+        for entry in entries:
             pool.record_failure(entry.label)
-            continue
-    return None
+        return None
 ```
 
 ---
@@ -488,6 +497,7 @@ Results are saved as JSON alongside the scripts.
 ## Design Rules
 
 - **No paid models** — only free-tier endpoints
+- **`FallbackModel` for fallback** — don't write manual `for entry in pool: try/except/continue` loops; use PydanticAI's built-in `FallbackModel`
 - **Single-entry rotation** — `openrouter/auto`, `kilo-auto/free`, and `llama-3.3-70b-versatile` rotate internally via the provider; we treat them as single entries
 - **Interleaved multi-model** — Ollama, Vercel, Groq, Cerebras, and Google have explicit model pools; entries are shuffled once, then interleaved (one from each per round)
 - **Circuit breaker per provider** — blocks provider for 60s after 5 consecutive failures; pool auto-rebuilds on next `entries()` call

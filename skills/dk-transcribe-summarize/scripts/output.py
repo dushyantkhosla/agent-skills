@@ -1,5 +1,6 @@
 """Output writers: PDF, HTML, and Markdown generation."""
 
+import datetime as dt
 from pathlib import Path
 
 from fpdf import FPDF
@@ -116,14 +117,56 @@ def write_html(
     out_path.write_text(page, encoding="utf-8")
 
 
+def _format_metadata(metadata: dict) -> str:
+    """Format metadata dict into a Markdown table section."""
+    if not metadata:
+        return ""
+
+    def _fmt_num(n: int) -> str:
+        return f"{n:,}"
+
+    def _fmt_date(d: str) -> str:
+        """Convert YYYYMMDD to 'Month DD, YYYY'."""
+        try:
+            return dt.date(int(d[:4]), int(d[4:6]), int(d[6:8])).strftime("%B %d, %Y")
+        except (ValueError, IndexError):
+            return d
+
+    rows: list[tuple[str, str]] = []
+    if ch := metadata.get("channel"):
+        rows.append(("Channel", ch))
+    if ud := metadata.get("upload_date"):
+        rows.append(("Uploaded", _fmt_date(ud)))
+    if vc := metadata.get("view_count"):
+        rows.append(("Views", _fmt_num(vc)))
+    if lc := metadata.get("like_count"):
+        rows.append(("Likes", _fmt_num(lc)))
+    if sf := metadata.get("channel_follower_count"):
+        rows.append(("Subscribers", _fmt_num(sf)))
+    if cats := metadata.get("categories"):
+        rows.append(("Categories", ", ".join(cats)))
+
+    if not rows:
+        return ""
+
+    lines = ["## Metadata", "", "| | |", "|---|---|"]
+    for label, value in rows:
+        lines.append(f"| **{label}** | {value} |")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def write_markdown(
     title: str,
     summary_100: str,
     summary_400: str,
     transcript: str,
     out_path: Path,
+    *,
+    metadata: dict | None = None,
 ) -> None:
     """Write a Markdown document with summaries and full transcript."""
+    meta_section = _format_metadata(metadata or {})
     lines = [
         f"# {title}",
         "",
@@ -131,6 +174,10 @@ def write_markdown(
         "",
         "---",
         "",
+    ]
+    if meta_section:
+        lines.append(meta_section)
+    lines += [
         "## 100-Word Summary",
         "",
         summary_100,

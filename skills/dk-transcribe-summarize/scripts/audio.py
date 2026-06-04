@@ -8,8 +8,13 @@ from pathlib import Path
 import yt_dlp
 
 
-def download_audio(url: str) -> tuple[Path, str]:
-    """Download best audio from YouTube, extract to m4a. Returns (path, title)."""
+def download_audio(url: str) -> tuple[Path, str, dict]:
+    """Download best audio from YouTube, extract to m4a.
+
+    Returns (audio_path, title, metadata) where metadata contains
+    channel, upload_date, view_count, like_count, channel_follower_count,
+    and categories from the YouTube info dict.
+    """
     tempdir = Path(tempfile.mkdtemp(prefix="yt_audio_"))
     outtmpl = str(tempdir / "download.%(ext)s")
 
@@ -47,7 +52,17 @@ def download_audio(url: str) -> tuple[Path, str]:
 
     audio_path = candidates[0]
     title = info.get("title", audio_path.stem) if info else audio_path.stem
-    return audio_path, title
+
+    metadata: dict = {}
+    if info:
+        for key in (
+            "channel", "upload_date", "view_count",
+            "like_count", "channel_follower_count", "categories",
+        ):
+            if (val := info.get(key)) is not None:
+                metadata[key] = val
+
+    return audio_path, title, metadata
 
 
 def compress_audio_for_api(path: Path) -> Path:

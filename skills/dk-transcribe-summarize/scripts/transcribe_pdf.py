@@ -49,6 +49,7 @@ def main() -> None:
 
     audio_path: Path | None = None
     title: str
+    metadata: dict = {}
     tempdir: Path | None = None
     model_name = LOCAL_MODEL_NAME
     model_loaded = False
@@ -60,7 +61,7 @@ def main() -> None:
 
         if is_youtube_url(user_input):
             print("Downloading audio from YouTube...")
-            audio_path, title = download_audio(user_input)
+            audio_path, title, metadata = download_audio(user_input)
             tempdir = audio_path.parent
         else:
             audio_path = Path(user_input)
@@ -85,7 +86,8 @@ def main() -> None:
         print("Generating 400-word summary (local model)...")
         summary_400 = verify_summary(summarize(transcript, 400), "400-word", transcript=transcript, words=400)
 
-        base_name = sanitize_filename(title)
+        channel = metadata.get("channel", "")
+        base_name = sanitize_filename(f"{channel}-{title}" if channel else title)
         pdf_path = out_dir / f"{base_name}.pdf"
         html_path = out_dir / f"{base_name}.html"
         md_path = out_dir / f"{base_name}.md"
@@ -97,7 +99,7 @@ def main() -> None:
         write_html(title, summary_100, summary_400, html_path)
 
         print("Writing Markdown...")
-        write_markdown(title, summary_100, summary_400, transcript, md_path)
+        write_markdown(title, summary_100, summary_400, transcript, md_path, metadata=metadata)
 
         print(f"\n📂 {out_dir}/")
         print(f"   ✅ PDF:  {base_name}.pdf")

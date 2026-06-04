@@ -22,24 +22,36 @@ def openrouter_chat(messages: list, max_tokens: int = 4000, temperature: float =
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY environment variable is not set")
 
-    resp = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": MODEL_NAME,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        },
-        timeout=300,
-    )
-    if not resp.ok:
-        print(f"OpenRouter error {resp.status_code}: {resp.text[:500]}", file=sys.stderr)
-        resp.raise_for_status()
-    data = resp.json()
+    import time
+    last_err = None
+    for attempt in range(1, 6):
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": MODEL_NAME,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+            timeout=300,
+        )
+        data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+        if resp.ok and "choices" in data and data["choices"]:
+            break
+        err_msg = data.get("error", {}).get("message", resp.text[:300]) if isinstance(data.get("error"), dict) else str(data.get("error", resp.text[:300]))
+        last_err = f"HTTP {resp.status_code}: {err_msg}"
+        print(f"  ⚠️  Attempt {attempt}/5 failed: {last_err}", file=sys.stderr)
+        if attempt < 5:
+            wait = 10 * attempt
+            print(f"  Retrying in {wait}s...", file=sys.stderr)
+            time.sleep(wait)
+    else:
+        print(f"OpenRouter transcription failed after 5 attempts: {last_err}", file=sys.stderr)
+        sys.exit(1)
     msg = data["choices"][0]["message"]
     content = msg.get("content") or msg.get("reasoning") or ""
     for prefix in ("Transcription:", "Transcript:", "Here is the transcription:"):

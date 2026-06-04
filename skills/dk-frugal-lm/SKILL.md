@@ -31,10 +31,10 @@ from typing import TypeVar, Type, Iterator
 from pydantic import BaseModel
 from dataclasses import dataclass
 from pydantic_ai import Agent
+from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.vercel import VercelProvider
-from pydantic_ai.settings import ModelSettings
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -42,8 +42,9 @@ T = TypeVar("T", bound=BaseModel)
 class ModelEntry:
     label: str                  # human-readable, e.g. "openrouter:free-0"
     model: OpenAIChatModel
-    settings: ModelSettings
 ```
+
+`ModelEntry` is a lightweight wrapper used by the provider registry. The `model` field is what gets passed to `FallbackModel` — per-model settings are not supported by `FallbackModel`; use a single `ModelSettings` on the `Agent` instead.
 
 ---
 
@@ -145,7 +146,6 @@ def resolve_model_chain(mode: str) -> Iterator[ModelEntry]:
         yield ModelEntry(
             label=f"{config.name}:{model_name}",
             model=OpenAIChatModel(model_name, provider=provider),
-            settings=ModelSettings(timeout=30.0),
         )
 
     # Local fallback at end of chain (for free tiers)
@@ -172,7 +172,6 @@ def _local_entry() -> ModelEntry | None:
                 api_key="lm-studio",
             )
         ),
-        settings=ModelSettings(timeout=60.0),   # local models are slower
     )
 ```
 
@@ -180,7 +179,12 @@ def _local_entry() -> ModelEntry | None:
 
 ## Structured Call
 
+Uses PydanticAI's built-in `FallbackModel` — tries each model in sequence, falls back on failure. No manual loop needed.
+
 ```python
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.exceptions import FallbackExceptionGroup
+
 async def call_cloud_structured(
     system_prompt: str,
     user_prompt: str,
@@ -191,21 +195,28 @@ async def call_cloud_structured(
     Returns structured output on first success, None if all models fail.
     Never raises - all LLM exceptions are caught internally.
     """
-    retries = 5 if "free" in mode else 3   # free endpoints rotate, so more retries = more model diversity
-    for entry in resolve_model_chain(mode):
-        agent = Agent(
-            model=entry.model,
-            model_settings=entry.settings,
-            retries=retries,
-            output_type=output_type,
-            system_prompt=system_prompt,
-        )
-        try:
-            result = await agent.run(user_prompt=user_prompt)
-            return result.output
-        except Exception:
-            continue   # try next entry in chain
-    return None
+    entries = list(resolve_model_chain(mode))
+    if not entries:
+        return None
+
+    retries = 5 if "free" in mode else 3
+    model = (
+        FallbackModel(entries[0].model, *[e.model for e in entries[1:]], fallback_on=(Exception,))
+        if len(entries) > 1
+        else entries[0].model
+    )
+
+    agent = Agent(
+        model=model,
+        retries=retries,
+        output_type=output_type,
+        system_prompt=system_prompt,
+    )
+    try:
+        result = await agent.run(user_prompt=user_prompt)
+        return result.output
+    except FallbackExceptionGroup:
+        return None   # all models in chain failed
 ```
 
 ---
@@ -215,12 +226,12 @@ async def call_cloud_structured(
 | Layer | Mechanism | Outcome |
 |---|---|---|
 | `Agent(retries=N)` | PydanticAI internal retry on 5xx / parse failure | Succeeds or raises after N attempts |
-| Chain loop | `except Exception: continue` to next `ModelEntry` | First success wins; returns `None` if chain exhausted |
+| `FallbackModel` | Automatic sequential fallback across models | First success wins; raises `FallbackExceptionGroup` if all fail |
 | Caller batch loop | `if result is None: log_failure(row); continue` | Batch never halts; failed rows logged for review |
 
 **Circuit breaker (optional, recommended for large batches):**
 
-Track consecutive failures per provider in module-level state. Skip a provider for 60s after 5 consecutive failures. Per-model tracking is useless on rotating free endpoints - track per-provider label instead.
+`FallbackModel` handles per-call fallback but doesn't track cumulative failures across calls. For large batches, filter blocked providers *before* building the `FallbackModel`:
 
 ```python
 from collections import defaultdict
@@ -241,7 +252,7 @@ def _record_failure(provider: str) -> None:
         _failures[provider] = 0
 ```
 
-Plug into `call_cloud_structured`: check `_is_blocked(entry.label.split(":")[0])` before each attempt; call `_record_failure` in the `except` block.
+Plug into `call_cloud_structured`: filter `entries` to exclude blocked providers before constructing `FallbackModel`. After `FallbackExceptionGroup`, record failures for all providers that were in the chain.
 
 ---
 
@@ -340,7 +351,7 @@ async def ensure_local_model_loaded() -> bool:
     if not entry:
         return False
     try:
-        agent = Agent(model=entry.model, model_settings=entry.settings, retries=1,
+        agent = Agent(model=entry.model, retries=1,
                       output_type=str, system_prompt="ping")
         await agent.run(user_prompt="ping")
         return True
@@ -387,8 +398,8 @@ VERCEL_MODELS=deepseek/deepseek-v4-flash,xiaomi/mimo-v2-flash,zai/glm-4.7-flash,
 ## Design Rules
 
 - **Return `None`, don't raise** - caller decides skip vs abort; LLM exceptions never escape `call_cloud_structured`
+- **`FallbackModel` for fallback** - don't write manual `for entry in chain: try/except/continue` loops; use PydanticAI's built-in `FallbackModel`
 - **Sequential chain, never concurrent** - free tiers have quota limits; paid costs money; concurrency is per-pool, not per-model
-- **Fresh `Agent()` per call** - never reuse across rows
 - **Free tier needs more retries** - each retry may hit a different rotating model; use `retries=5`
 - **Local fallback is optional** - absent `LOCAL_MODEL_INFERENCE` means silently skipped, never a crash
 - **Pre-flight local model** - call `ensure_local_model_loaded()` before batch; log warning on failure, continue anyway
