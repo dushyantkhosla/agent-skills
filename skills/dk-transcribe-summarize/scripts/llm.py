@@ -55,8 +55,9 @@ def openrouter_chat(
             print(f"  Retrying in {wait}s...", file=sys.stderr)
             time.sleep(wait)
     else:
-        print(f"OpenRouter transcription failed after 5 attempts: {last_err}", file=sys.stderr)
-        sys.exit(1)
+        raise RuntimeError(
+            f"OpenRouter transcription failed after 5 attempts: {last_err}"
+        )
     msg = data["choices"][0]["message"]
     content = msg.get("content") or msg.get("reasoning") or ""
     for prefix in ("Transcription:", "Transcript:", "Here is the transcription:"):
