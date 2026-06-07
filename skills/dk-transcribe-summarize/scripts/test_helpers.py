@@ -68,5 +68,5 @@ if __name__ == "__main__":
     test_is_youtube_url()
     print("✓ test_is_youtube_url passed")
     # test_count_words() waits for Task 4 (count_words implementation)
-    # test_is_failure_response() waits for Task 6 (is_failure_response implementation)
+    test_is_failure_response()
     print("All tests passed!")
