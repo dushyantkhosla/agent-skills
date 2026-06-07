@@ -319,3 +319,24 @@ def summarize(transcript: str, words: int) -> str:
         f"Output only the summary, no commentary.\n\n{transcript}"
     )
     return local_chat(prompt, max_tokens=2000)
+
+
+def summarize_custom(transcript: str, prompt: str) -> str:
+    """Generate a custom summary via local LLM, routed through verify_summary.
+
+    For transcripts longer than ~5,000 words, the local model's context
+    window may truncate input. The function warns and proceeds; for very
+    long content the default 100/400-word pipeline is recommended instead.
+    """
+    word_count = len(transcript.split())
+    if word_count > 5000:
+        print(f"  \u26a0\ufe0f  Transcript is {word_count} words; custom summary may be truncated.")
+        print(f"     Consider using default 100/400-word summaries for long content.")
+
+    full_prompt = (
+        f"Based on the following transcript, {prompt}. "
+        f"Output only the summary, no commentary.\n\n"
+        f"TRANSCRIPT:\n{transcript}"
+    )
+    result = local_chat(full_prompt, max_tokens=4000)
+    return verify_summary(result, "custom", transcript=transcript)
