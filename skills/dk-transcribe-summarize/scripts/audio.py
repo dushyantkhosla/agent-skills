@@ -183,16 +183,11 @@ def parse_vtt(vtt_path: Path) -> str:
 
 
 def count_words(vtt_path: Path) -> int:
-    """Count words in a VTT file, stripping timestamps and HTML tags."""
-    text = vtt_path.read_text(encoding="utf-8")
-    # Strip WEBVTT header lines
-    text = re.sub(r"^WEBVTT.*\n", "", text)
-    # Strip timestamp lines: HH:MM:SS.mmm --> HH:MM:SS.mmm
-    text = re.sub(r"\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}\s*\n?", " ", text)
-    # Strip HTML-like tags: <c.music>, </c>, <00:00:01.000>, etc.
-    text = re.sub(r"<[^>]+>", "", text)
-    # Collapse whitespace
-    text = re.sub(r"\s+", " ", text).strip()
+    """Count words in a parsed VTT file.
+
+    Delegates to parse_vtt to avoid duplicating VTT parsing logic.
+    """
+    text = parse_vtt(vtt_path)
     words = text.split()
     return len(words)
 
@@ -217,8 +212,9 @@ def has_repeated_phrases(vtt_path: Path, threshold: int = 3) -> bool:
     for i in range(len(all_words) - 4):
         gram = " ".join(all_words[i:i+5])
         ngrams[gram] = ngrams.get(gram, 0) + 1
-
-    return any(count >= threshold for count in ngrams.values())
+        if ngrams[gram] >= threshold:
+            return True
+    return False
 
 
 def detect_language(vtt_path: Path) -> str:
