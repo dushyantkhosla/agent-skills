@@ -6,6 +6,9 @@
 #     "yt-dlp",
 #     "fpdf2>=2.8",
 #     "mistune>=3",
+#     "webvtt-py>=0.5",
+#     "langdetect>=1.0",
+#     "mlx-whisper>=0.4",
 # ]
 # ///
 
