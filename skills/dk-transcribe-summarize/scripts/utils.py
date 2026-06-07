@@ -15,7 +15,7 @@ def prompt_user() -> str:
 
 def is_youtube_url(text: str) -> bool:
     """Check if text is a YouTube URL (not just any http URL)."""
-    return bool(re.match(r'https?://(www\.)?(youtube\.com|youtu\.be)/', text))
+    return bool(re.match(r'https?://([a-z]+\.)?(youtube\.com|youtu\.be)(/|$)', text))
 
 
 def sanitize_filename(name: str) -> str:
@@ -78,7 +78,7 @@ def parse_args() -> tuple[str | None, str, str | None]:
         help="Transcription method (default: hybrid)"
     )
     parser.add_argument(
-        "--prompt", type=str, default=None,
+        "--prompt", default=None,
         help="Custom summarization instruction (overrides 100/400-word defaults)"
     )
     args = parser.parse_args()

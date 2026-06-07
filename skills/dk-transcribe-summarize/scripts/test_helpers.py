@@ -4,13 +4,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from utils import is_youtube_url as _old_is_youtube_url
-import re
-
-
-def is_youtube_url(text: str) -> bool:
-    """New implementation to test."""
-    return bool(re.match(r'https?://(www\.)?(youtube\.com|youtu\.be)/', text))
+from utils import is_youtube_url
 
 
 def test_is_youtube_url():
@@ -19,6 +13,8 @@ def test_is_youtube_url():
     assert is_youtube_url("https://youtube.com/watch?v=abc123")
     assert is_youtube_url("https://youtu.be/abc123")
     assert is_youtube_url("http://youtube.com/watch?v=abc123")
+    assert is_youtube_url("https://m.youtube.com/watch?v=abc123")
+    assert is_youtube_url("https://music.youtube.com/watch?v=abc123")
 
     # Non-YouTube URLs (should reject)
     assert not is_youtube_url("https://example.com/video.mp4")

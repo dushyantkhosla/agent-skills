@@ -105,6 +105,15 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-05-31T16:00:16.341Z",
       "updatedAt": "2026-05-31T16:00:16.341Z"
+    },
+    "obsidian-markdown": {
+      "source": "kepano/obsidian-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/kepano/obsidian-skills.git",
+      "skillPath": "skills/obsidian-markdown/SKILL.md",
+      "skillFolderHash": "5caf5d9e7de204f3904216857545f2aa36bcfcac",
+      "installedAt": "2026-06-06T20:35:09.850Z",
+      "updatedAt": "2026-06-06T20:35:09.850Z"
     }
   },
   "dismissed": {
@@ -113,15 +122,14 @@
   "lastSelectedAgents": [
     "amp",
     "antigravity",
+    "antigravity-cli",
     "cline",
     "codex",
     "cursor",
     "deepagents",
-    "dexto",
-    "firebender",
     "gemini-cli",
     "github-copilot",
-    "kimi-cli",
+    "kimi-code-cli",
     "opencode",
     "warp",
     "zed"
