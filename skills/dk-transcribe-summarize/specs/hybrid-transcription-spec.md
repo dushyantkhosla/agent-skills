@@ -22,9 +22,10 @@ A 1h43m podcast episode failed today because MiMo couldn't process the large aud
 
 Implement a multi-stage transcription pipeline that:
 1. Tries free, fast subtitle download first
-2. Falls back to audio transcription with OpenRouter model redundancy
+2. Falls back to audio transcription with an OpenRouter model chain
+3. As a final fallback, runs mlx-whisper (large-v3-turbo) locally on Apple Silicon — zero cost, fully offline
 
-Local transcription (whisper) is explicitly **out of scope for this iteration**. The script exits with a clear error if all cloud models are exhausted.
+The script exits with a clear error only after all 5 stages are exhausted.
 
 ---
 
@@ -39,6 +40,8 @@ Local transcription (whisper) is explicitly **out of scope for this iteration**.
 │  3. Gemini Flash Lite (google/gemini-2.5-flash-lite) — mid    │
 │     ↓ FAIL                                                     │
 │  4. Gemini Flash (google/gemini-2.5-flash) — more capable     │
+│     ↓ FAIL                                                     │
+│  5. mlx-whisper (local, large-v3-turbo) — zero cost, offline  │
 │     ↓ FAIL                                                     │
 │  ❌ Exit with clear error message                              │
 └────────────────────────────────────────────────────────────────┘
@@ -176,15 +179,17 @@ Always show summary line after transcription:
 ⚠️ Subtitles sparse (48 WPM) → fell back to audio
    Used: Gemini Flash Lite | Duration: 45:12 | Words: 6,234
 
-❌ Transcription failed after 4 attempts:
+❌ Transcription failed after 5 attempts:
    1. Subtitles: Not available
    2. MiMo: HTTP 400 - Audio too large
    3. Gemini Flash Lite: Empty response
    4. Gemini Flash: Timeout
+   5. mlx-whisper: mlx.core error — model not loaded
 
    Suggestions:
    - Ensure OPENROUTER_API_KEY is set
    - Try a shorter video
+   - Ensure running on Apple Silicon for local whisper fallback
 ```
 
 ---
@@ -595,7 +600,7 @@ MAX_PROMPT_LENGTH = 2000  # chars
 
 - [ ] Subtitles attempted first for YouTube URLs
 - [ ] Quality checks reject bad captions (including zero/negative duration)
-- [ ] Fallback chain works through all 3 OpenRouter models
+- [ ] Fallback chain works through all 5 stages
 - [ ] `openrouter_chat` accepts optional `model` parameter
 - [ ] Clear error message when all fail, including per-model failure details
 - [ ] No output files generated on failure
@@ -614,7 +619,7 @@ MAX_PROMPT_LENGTH = 2000  # chars
 
 ## Out of Scope
 
-- Local transcription / whisper models (future iteration)
+- Non-Apple Silicon local transcription (Intel Mac/Linux/Windows need alternative STT)
 - Speaker diarization (separate feature)
 - Real-time transcription
 - Support for non-English languages (future)
