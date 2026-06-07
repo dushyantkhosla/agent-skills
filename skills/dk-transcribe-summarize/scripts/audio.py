@@ -125,8 +125,6 @@ def get_subtitles(url: str) -> tuple[Path | None, Path | None, str]:
 
     Uses a single download=True call to avoid double-fetching YouTube.
     """
-    import tempfile
-
     tempdir = Path(tempfile.mkdtemp(prefix="yt_subs_"))
 
     ydl_opts = {
