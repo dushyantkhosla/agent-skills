@@ -1,11 +1,18 @@
 """Audio download (YouTube) and compression utilities."""
 
 import mimetypes
+import re
 import subprocess
 import tempfile
 from pathlib import Path
 
 import yt_dlp
+from config import (
+    SUBTITLE_MIN_WPM,
+    SUBTITLE_MIN_WORDS_LONG_VIDEO,
+    SUBTITLE_LONG_VIDEO_THRESHOLD_SECS,
+    SUBTITLE_REPEATED_PHRASE_THRESHOLD,
+)
 
 
 def download_audio(url: str) -> tuple[Path, str, dict]:
@@ -157,3 +164,100 @@ def get_subtitles(url: str) -> tuple[Path | None, Path | None, str]:
         return None, tempdir, ""
     except Exception:
         return None, tempdir, ""
+
+
+def parse_vtt(vtt_path: Path) -> str:
+    """Parse a VTT subtitle file and return plain text.
+
+    Requires webvtt-py (added to PEP 723 deps in Task 12).
+    """
+    import webvtt
+
+    captions = webvtt.read(str(vtt_path))
+    texts = []
+    for caption in captions:
+        text = caption.text.strip()
+        if text:
+            texts.append(text)
+    return " ".join(texts)
+
+
+def count_words(vtt_path: Path) -> int:
+    """Count words in a VTT file, stripping timestamps and HTML tags."""
+    text = vtt_path.read_text(encoding="utf-8")
+    # Strip WEBVTT header lines
+    text = re.sub(r"^WEBVTT.*\n", "", text)
+    # Strip timestamp lines: HH:MM:SS.mmm --> HH:MM:SS.mmm
+    text = re.sub(r"\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}\s*\n?", " ", text)
+    # Strip HTML-like tags: <c.music>, </c>, <00:00:01.000>, etc.
+    text = re.sub(r"<[^>]+>", "", text)
+    # Collapse whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    words = text.split()
+    return len(words)
+
+
+def has_repeated_phrases(vtt_path: Path, threshold: int = 3) -> bool:
+    """Check if VTT contains suspiciously repeated 5-word phrases.
+
+    Indicates garbled auto-captions where the model stutters.
+    """
+    import webvtt
+
+    captions = webvtt.read(str(vtt_path))
+    all_words = []
+    for caption in captions:
+        words = caption.text.strip().lower().split()
+        all_words.extend(words)
+
+    if len(all_words) < 5:
+        return False
+
+    ngrams: dict[str, int] = {}
+    for i in range(len(all_words) - 4):
+        gram = " ".join(all_words[i:i+5])
+        ngrams[gram] = ngrams.get(gram, 0) + 1
+
+    return any(count >= threshold for count in ngrams.values())
+
+
+def detect_language(vtt_path: Path) -> str:
+    """Detect language of VTT text. Returns ISO 639-1 code or 'unknown'.
+
+    Requires langdetect (added to PEP 723 deps in Task 12).
+    """
+    from langdetect import detect, LangDetectException
+
+    text = parse_vtt(vtt_path)
+    if len(text.strip()) < 20:
+        return "unknown"
+    try:
+        return detect(text)
+    except LangDetectException:
+        return "unknown"
+
+
+def check_subtitle_quality(vtt_path: Path, duration_seconds: int) -> str:
+    """Validate subtitle quality. Returns 'good' or a failure reason string.
+
+    Failure reasons: no_duration, sparse, garbled, too_short, wrong_language
+    """
+    if duration_seconds <= 0:
+        return "no_duration"
+
+    word_count = count_words(vtt_path)
+    wpm = (word_count / duration_seconds) * 60
+
+    if wpm < SUBTITLE_MIN_WPM:
+        return "sparse"
+
+    if has_repeated_phrases(vtt_path, SUBTITLE_REPEATED_PHRASE_THRESHOLD):
+        return "garbled"
+
+    if duration_seconds > SUBTITLE_LONG_VIDEO_THRESHOLD_SECS and word_count < SUBTITLE_MIN_WORDS_LONG_VIDEO:
+        return "too_short"
+
+    if detect_language(vtt_path) != "en":
+        return "wrong_language"
+
+    return "good"
