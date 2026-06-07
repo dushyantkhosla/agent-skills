@@ -49,8 +49,12 @@ Modular Python CLI tool (`scripts/`) that:
 
 | Step | Command |
 |------|---------|
-| Run | `cd scripts && uv run transcribe_pdf.py` |
-| Input | Paste local path or YouTube URL at prompt |
+| Run (default) | `cd scripts && uv run transcribe_pdf.py` |
+| Run with URL | `cd scripts && uv run transcribe_pdf.py "https://youtube.com/..."` |
+| Subtitles only | `cd scripts && uv run transcribe_pdf.py --method subtitles` |
+| Audio only | `cd scripts && uv run transcribe_pdf.py --method audio` |
+| Custom prompt | `cd scripts && uv run transcribe_pdf.py "..." --prompt "Extract action items"` |
+| Input | Paste local path or YouTube URL at prompt (if no CLI arg) |
 | Output | `transcribed/<YYYY-MM-DD>/<title>.pdf` + `.html` + `.md` |
 | API key | `OPENROUTER_API_KEY` env var (for transcription only) |
 | Local model | Override with `LOCAL_MODEL_NAME` env var (default: `gemma-4-e4b-it`) |
@@ -79,11 +83,17 @@ uv run scripts/transcribe_pdf.py
    - JS runtime (Node.js) + EJS remote component (for n-challenge solving)
    - FFmpeg post-processing to .m4a
 4. **transcribe()** — sends audio as base64 data URI to OpenRouter's `xiaomi/mimo-v2.5`; auto-compresses with ffmpeg if >6 MB
-5. **ensure_lmstudio_ready()** — starts LM Studio server if needed, loads the local model
-6. **summarize()** — generates ~100-word and ~400-word summaries via the local model's OpenAI-compatible API
-7. **verify_summary()** — checks each summary for chain-of-thought contamination ("Thinking Process:", "Analyze the:", etc.); strips it if found
-8. **write_pdf()**, **write_html()**, **write_markdown()** — writes all three formats to `transcribed/<YYYY-MM-DD>/`
-9. **Cleanup** — unloads the LM Studio model, removes temp files
+4b. **transcribe_with_fallback()** — if subtitles unavailable, tries OpenRouter models in order:
+   - MiMo (`xiaomi/mimo-v2.5`) — cheapest
+   - Gemini Flash Lite (`google/gemini-2.5-flash-lite`) — mid-tier
+   - Gemini Flash (`google/gemini-2.5-flash`) — most capable
+   - mlx-whisper (local, Apple Silicon) — zero cost, offline
+   Each model gets 1 retry before moving to the next. If all fail, exits with a detailed error.
+6. **ensure_lmstudio_ready()** — starts LM Studio server if needed, loads the local model
+7. **summarize()** — generates ~100-word and ~400-word summaries via the local model's OpenAI-compatible API
+8. **verify_summary()** — checks each summary for chain-of-thought contamination ("Thinking Process:", "Analyze the:", etc.); strips it if found
+9. **write_pdf()**, **write_html()**, **write_markdown()** — writes all three formats to `transcribed/<YYYY-MM-DD>/`
+10. **Cleanup** — unloads the LM Studio model, removes temp files
 
 ## Verification
 
@@ -112,6 +122,8 @@ The script is **not** fully self-contained. Here is every external dependency:
 | `yt-dlp` | latest | YouTube audio download with cookie/JS support |
 | `mistune` | ≥3.0 | Markdown-to-HTML conversion for the HTML output file |
 | `fpdf2` | ≥2.8 | PDF generation |
+| `webvtt-py` | ≥0.5 | VTT subtitle parsing |
+| `langdetect` | ≥1.0 | Language detection for subtitle quality checks |
 
 ### Environment Variables
 | Variable | Required | Purpose |
@@ -151,6 +163,7 @@ The script is **not** fully self-contained. Here is every external dependency:
 | Audio compression | 8kbps mono MP3 | Triggered when raw audio > ~4.5 MB |
 | Max tokens (transcription) | 10,000 | Covers ~60-90 min of speech |
 | Output directory | `transcribed/<YYYY-MM-DD>/` | At `/Users/dush/Code/transcribed/<YYYY-MM-DD>/` |
+| Fallback models | MiMo → GLite → GFlash → mlx-whisper | Change `FALLBACK_MODELS` in config.py |
 
 ## Common Mistakes
 
@@ -163,3 +176,4 @@ The script is **not** fully self-contained. Here is every external dependency:
 | yt-dlp JS runtime warning | Install Deno: `brew install deno` |
 | Empty transcription | Check audio isn't silent or corrupted |
 | Summary has thinking noise | Script auto-detects and strips it; try a different model via `LOCAL_MODEL_NAME` |
+| whisper fails / not found | mlx-whisper requires Apple Silicon. If on Intel/Linux, the script exits after cloud models with a clear error. |
