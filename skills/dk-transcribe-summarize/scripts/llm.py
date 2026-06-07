@@ -124,6 +124,70 @@ class TranscriptionFailed(Exception):
         return "\n".join(lines)
 
 
+def transcribe_with_openrouter(audio_path: Path, model_id: str) -> str:
+    """Transcribe audio via OpenRouter with a specific model.
+
+    Reuses the existing compression and data-URI logic from transcribe().
+    """
+    raw_size = audio_path.stat().st_size
+    estimated_b64 = raw_size * 4 // 3
+    if estimated_b64 > 6_000_000:
+        print(f"  Audio is large; compressing for {model_id}...")
+        audio_path = compress_audio_for_api(audio_path)
+
+    data_uri = audio_to_data_uri(audio_path)
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "audio_url", "audio_url": {"url": data_uri}},
+                {
+                    "type": "text",
+                    "text": "Transcribe this audio. Output only the transcription, no commentary.",
+                },
+            ],
+        }
+    ]
+    return openrouter_chat(messages, max_tokens=10000, model=model_id)
+
+
+def transcribe_with_fallback(audio_path: Path) -> tuple[str, str]:
+    """Try OpenRouter transcription models in order until success.
+
+    Returns (transcript, model_name).
+    Raises TranscriptionFailed if all models are exhausted.
+    """
+    from config import FALLBACK_MODELS
+    from whisper_local import whisper_transcribe
+
+    models: list[tuple[str, str | None, bool]] = [
+        ("MiMo",               FALLBACK_MODELS["mimo"],               True),   # cloud
+        ("Gemini Flash Lite",  FALLBACK_MODELS["gemini_flash_lite"],  True),   # cloud
+        ("Gemini Flash",       FALLBACK_MODELS["gemini_flash"],       True),   # cloud
+        ("mlx-whisper (local)", None,                                  False),  # local
+    ]
+
+    failures: list[tuple[str, str]] = []
+
+    for name, model_id, is_cloud in models:
+        for attempt in range(2):  # 1 initial attempt + 1 retry
+            try:
+                if is_cloud:
+                    result = transcribe_with_openrouter(audio_path, model_id)
+                else:
+                    result = whisper_transcribe(audio_path)
+
+                if result and not is_failure_response(result):
+                    print(f"  \u2713 Transcribed via {name}")
+                    return result, name
+                failures.append((name, f"Attempt {attempt+1}: empty/failure response"))
+                break  # bad response, don't retry
+            except Exception as e:
+                failures.append((name, f"Attempt {attempt+1}: {e}"))
+
+    raise TranscriptionFailed(failures)
+
+
 # ── LM Studio (local summarization) ────────────────────────────────────
 
 
