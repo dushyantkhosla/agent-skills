@@ -92,6 +92,38 @@ def transcribe(audio_path: Path) -> str:
     return openrouter_chat(messages, max_tokens=10000)
 
 
+def is_failure_response(text: str) -> bool:
+    """Check if transcription output is a model refusal.
+
+    Uses word-boundary patterns to avoid false-positives on
+    legitimate transcript content like 'there was no audio in the video'.
+    """
+    if not text or not text.strip():
+        return True
+    failure_patterns = [
+        r"\bno audio (detected|found|present)\b",
+        r"\bno speech detected\b",
+        r"\bunable to (transcribe|process)\b",
+        r"\bcannot (transcribe|process)\b",
+    ]
+    t = text.lower()
+    return any(re.search(p, t) for p in failure_patterns)
+
+
+class TranscriptionFailed(Exception):
+    """Raised when all transcription models are exhausted."""
+
+    def __init__(self, failures: list[tuple[str, str]]):
+        self.failures = failures
+        super().__init__(self._format())
+
+    def _format(self) -> str:
+        lines = ["Transcription failed after exhausting all models:"]
+        for i, (name, reason) in enumerate(self.failures, 1):
+            lines.append(f"  {i}. {name}: {reason}")
+        return "\n".join(lines)
+
+
 # ── LM Studio (local summarization) ────────────────────────────────────
 
 
