@@ -31,91 +31,171 @@ from utils import (
     is_youtube_url,
     sanitize_filename,
     validate_environment,
+    parse_args,
 )
-from audio import download_audio
+from audio import (
+    download_audio,
+    get_subtitles,
+    get_video_duration,
+    check_subtitle_quality,
+    parse_vtt,
+    count_words,
+)
 from llm import (
-    transcribe,
+    transcribe_with_fallback,
+    TranscriptionFailed,
+    summarize_custom,
     ensure_lmstudio_ready,
     unload_lmstudio_model,
     summarize,
     verify_summary,
 )
-from output import write_pdf, write_html, write_markdown
+from output import write_pdf, write_html, write_markdown, write_custom_output
 
 
 def main() -> None:
     validate_environment()
-    user_input = prompt_user()
-    if not user_input:
+
+    url, method, custom_prompt = parse_args()
+    if url is None:
+        url = prompt_user()
+    if not url:
         print("No input provided.", file=sys.stderr)
         sys.exit(1)
 
-    audio_path: Path | None = None
-    title: str
-    metadata: dict = {}
-    tempdir: Path | None = None
-    model_name = LOCAL_MODEL_NAME
+    tempdirs: list[Path] = []
     model_loaded = False
 
     try:
-        date_str = dt.date.today().isoformat()
-        out_dir = Path(OUTPUT_BASE) / date_str
-        out_dir.mkdir(parents=True, exist_ok=True)
+        transcript: str = ""
+        source: str = ""
+        source_detail: str = ""
+        title: str = ""
+        metadata: dict = {}
 
-        if is_youtube_url(user_input):
-            print("Downloading audio from YouTube...")
-            audio_path, title, metadata = download_audio(user_input)
-            tempdir = audio_path.parent
+        if is_youtube_url(url):
+            if method in ("hybrid", "subtitles"):
+                # STAGE 1: Try subtitles
+                vtt_path, subs_tempdir, lang = get_subtitles(url)
+                if subs_tempdir:
+                    tempdirs.append(subs_tempdir)
+
+                if vtt_path:
+                    duration = get_video_duration(url)
+                    quality = check_subtitle_quality(vtt_path, duration)
+                    if quality == "good":
+                        transcript = parse_vtt(vtt_path)
+                        source = "subtitles"
+                        wpm = int((count_words(vtt_path) / duration) * 60)
+                        source_detail = f"YouTube auto-captions, {wpm} WPM"
+                        print(f"✅ Transcribed via subtitles ({wpm} WPM, good quality)")
+                        print(f"   Duration: {duration//60}:{duration%60:02d} | Words: {count_words(vtt_path)}")
+                    elif method == "subtitles":
+                        print("❌ No usable English subtitles found.")
+                        print("   Try --method hybrid or --method audio.")
+                        sys.exit(1)
+                    else:
+                        print(f"⚠️ Subtitles {quality} → falling back to audio")
+
+                if not transcript and method == "subtitles":
+                    print("❌ No English subtitles available for this video.")
+                    print("   Try --method hybrid or --method audio.")
+                    sys.exit(1)
+
+            if not transcript:
+                # Fall through to audio chain
+                print("Downloading audio from YouTube...")
+                audio_path, title, metadata = download_audio(url)
+                tempdirs.append(audio_path.parent)
+
+                print("Transcribing...")
+                transcript, last_used_model = transcribe_with_fallback(audio_path)
+                source = "audio"
+                source_detail = f"via {last_used_model}"
         else:
-            audio_path = Path(user_input)
+            # Local file — audio chain only
+            audio_path = Path(url)
             if not audio_path.exists():
                 print(f"File not found: {audio_path}", file=sys.stderr)
                 sys.exit(1)
             title = audio_path.stem
 
-        print("Transcribing...")
-        transcript = transcribe(audio_path)
-        if not transcript.strip():
-            print("Transcription returned empty.", file=sys.stderr)
+            print("Transcribing...")
+            transcript, last_used_model = transcribe_with_fallback(audio_path)
+            source = "audio"
+            source_detail = f"via {last_used_model}"
+
+        # Validate we have something
+        if not transcript or len(transcript.split()) < 50:
+            print("❌ Transcription failed or too short", file=sys.stderr)
             sys.exit(1)
 
-        print("Preparing LM Studio for summarization...")
-        ensure_lmstudio_ready(model_name)
+        # STAGE 2: Summarization
+        print(f"Preparing LM Studio for summarization ({LOCAL_MODEL_NAME})...")
+        ensure_lmstudio_ready(LOCAL_MODEL_NAME)
         model_loaded = True
 
-        print("Generating 100-word summary (local model)...")
-        summary_100 = verify_summary(summarize(transcript, 100), "100-word", transcript=transcript, words=100)
-
-        print("Generating 400-word summary (local model)...")
-        summary_400 = verify_summary(summarize(transcript, 400), "400-word", transcript=transcript, words=400)
+        date_str = dt.date.today().isoformat()
+        out_dir = Path(OUTPUT_BASE) / date_str
+        out_dir.mkdir(parents=True, exist_ok=True)
 
         channel = metadata.get("channel", "")
         base_name = sanitize_filename(f"{channel}-{title}" if channel else title)
-        pdf_path = out_dir / f"{base_name}.pdf"
-        html_path = out_dir / f"{base_name}.html"
-        md_path = out_dir / f"{base_name}.md"
 
-        print("Writing PDF...")
-        write_pdf(title, summary_100, summary_400, pdf_path)
+        if custom_prompt:
+            print("Generating custom summary (local model)...")
+            summary = summarize_custom(transcript, custom_prompt)
+            write_custom_output(
+                title, summary, transcript,
+                out_dir / base_name,
+                metadata, source, source_detail,
+            )
+        else:
+            print("Generating 100-word summary (local model)...")
+            summary_100 = verify_summary(
+                summarize(transcript, 100), "100-word",
+                transcript=transcript, words=100,
+            )
+            print("Generating 400-word summary (local model)...")
+            summary_400 = verify_summary(
+                summarize(transcript, 400), "400-word",
+                transcript=transcript, words=400,
+            )
 
-        print("Writing HTML...")
-        write_html(title, summary_100, summary_400, html_path)
+            pdf_path = out_dir / f"{base_name}.pdf"
+            html_path = out_dir / f"{base_name}.html"
+            md_path = out_dir / f"{base_name}.md"
 
-        print("Writing Markdown...")
-        write_markdown(title, summary_100, summary_400, transcript, md_path, metadata=metadata)
+            print("Writing PDF...")
+            write_pdf(title, summary_100, summary_400, pdf_path)
+
+            print("Writing HTML...")
+            write_html(title, summary_100, summary_400, html_path)
+
+            print("Writing Markdown...")
+            write_markdown(
+                title, summary_100, summary_400, transcript,
+                md_path, metadata=metadata,
+                source=source, source_detail=source_detail,
+            )
 
         print(f"\n📂 {out_dir}/")
         print(f"   ✅ PDF:  {base_name}.pdf")
         print(f"   ✅ HTML: {base_name}.html")
         print(f"   ✅ MD:   {base_name}.md")
 
+    except TranscriptionFailed as e:
+        print(f"\n❌ {e}", file=sys.stderr)
+        print("\n   Suggestions:", file=sys.stderr)
+        print("   - Ensure OPENROUTER_API_KEY is set", file=sys.stderr)
+        print("   - Try a shorter video", file=sys.stderr)
+        sys.exit(1)
+
     finally:
         if model_loaded:
-            unload_lmstudio_model(model_name)
-        if tempdir and tempdir.exists():
-            shutil.rmtree(tempdir, ignore_errors=True)
-        if audio_path and audio_path.exists() and audio_path.suffix == ".compressed.mp3" and not tempdir:
-            audio_path.unlink(missing_ok=True)
+            unload_lmstudio_model(LOCAL_MODEL_NAME)
+        for td in tempdirs:
+            shutil.rmtree(td, ignore_errors=True)
 
 
 if __name__ == "__main__":
