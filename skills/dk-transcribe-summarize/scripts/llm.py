@@ -16,7 +16,12 @@ from audio import compress_audio_for_api, audio_to_data_uri
 # ── OpenRouter (transcription) ─────────────────────────────────────────
 
 
-def openrouter_chat(messages: list, max_tokens: int = 4000, temperature: float = 0) -> str:
+def openrouter_chat(
+    messages: list,
+    max_tokens: int = 4000,
+    temperature: float = 0,
+    model: str | None = None,
+) -> str:
     """Call the OpenRouter API for transcription."""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
@@ -32,7 +37,7 @@ def openrouter_chat(messages: list, max_tokens: int = 4000, temperature: float =
                 "Content-Type": "application/json",
             },
             json={
-                "model": MODEL_NAME,
+                "model": model or MODEL_NAME,
                 "messages": messages,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
