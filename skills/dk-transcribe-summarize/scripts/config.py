@@ -2,7 +2,7 @@
 
 import os
 
-# OpenRouter transcription model (must support audio_url content type)
+# OpenRouter transcription model (must support input_audio content type)
 MODEL_NAME = "xiaomi/mimo-v2.5"
 
 # Local summarization model via LM Studio
@@ -21,6 +21,14 @@ FALLBACK_MODELS = {
     "gemini_flash_lite":  "google/gemini-2.5-flash-lite",
     "gemini_flash":       "google/gemini-2.5-flash",
 }
+
+# ── Summarization fallback chain (OpenRouter model IDs) ───────────
+# Same order as transcription: cheapest → mid → most capable, then LM Studio
+SUMMARIZATION_MODELS = [
+    ("MiMo",              FALLBACK_MODELS["mimo"]),
+    ("Gemini Flash Lite", FALLBACK_MODELS["gemini_flash_lite"]),
+    ("Gemini Flash",      FALLBACK_MODELS["gemini_flash"]),
+]
 
 # ── Subtitle quality thresholds ───────────────────────────────────
 SUBTITLE_MIN_WPM = 50

@@ -45,7 +45,6 @@ from llm import (
     transcribe_with_fallback,
     TranscriptionFailed,
     summarize_custom,
-    ensure_lmstudio_ready,
     unload_lmstudio_model,
     summarize,
     verify_summary,
@@ -130,10 +129,9 @@ def main() -> None:
             print("❌ Transcription failed or too short", file=sys.stderr)
             sys.exit(1)
 
-        # STAGE 2: Summarization
-        print(f"Preparing LM Studio for summarization ({LOCAL_MODEL_NAME})...")
-        ensure_lmstudio_ready(LOCAL_MODEL_NAME)
-        model_loaded = True
+        # STAGE 2: Summarization (cloud first, local fallback)
+        print("Generating summary...")
+        model_loaded = True  # track for cleanup in finally block
 
         date_str = dt.date.today().isoformat()
         out_dir = Path(OUTPUT_BASE) / date_str
@@ -143,7 +141,6 @@ def main() -> None:
         base_name = sanitize_filename(f"{channel}-{title}" if channel else title)
 
         if custom_prompt:
-            print("Generating custom summary (local model)...")
             summary = summarize_custom(transcript, custom_prompt)
             write_custom_output(
                 title, summary, transcript,
@@ -151,12 +148,10 @@ def main() -> None:
                 metadata, source, source_detail,
             )
         else:
-            print("Generating 100-word summary (local model)...")
             summary_100 = verify_summary(
                 summarize(transcript, 100), "100-word",
                 transcript=transcript, words=100,
             )
-            print("Generating 400-word summary (local model)...")
             summary_400 = verify_summary(
                 summarize(transcript, 400), "400-word",
                 transcript=transcript, words=400,

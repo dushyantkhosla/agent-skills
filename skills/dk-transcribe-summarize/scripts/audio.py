@@ -86,7 +86,7 @@ def compress_audio_for_api(path: Path) -> Path:
 
 
 def audio_to_data_uri(path: Path) -> str:
-    """Encode audio file as a base64 data URI for multimodal API calls."""
+    """Encode audio file as a base64 data URI (deprecated — use audio_to_base64 instead)."""
     mime, _ = mimetypes.guess_type(str(path))
     if mime is None:
         ext = path.suffix.lower()
@@ -99,6 +99,80 @@ def audio_to_data_uri(path: Path) -> str:
     import base64
     b64 = base64.b64encode(data).decode()
     return f"data:{mime};base64,{b64}"
+
+
+def audio_to_base64(path: Path) -> tuple[str, str]:
+    """Encode audio file as raw base64 + format string for input_audio content type.
+
+    Returns (base64_bytes, format_name) where format_name is "mp3", "wav", "m4a", etc.
+    """
+    ext = path.suffix.lower().lstrip(".")
+    # Normalise common extensions to OpenRouter-supported format names
+    fmt_map = {
+        "mp3": "mp3",
+        "m4a": "m4a",
+        "wav": "wav",
+        "webm": "webm",
+        "opus": "opus",
+        "ogg": "ogg",
+        "flac": "flac",
+        "aac": "aac",
+        "aiff": "aiff",
+    }
+    fmt = fmt_map.get(ext, ext)
+    data = path.read_bytes()
+    import base64
+    b64 = base64.b64encode(data).decode()
+    return b64, fmt
+
+
+# ── Audio chunking ──────────────────────────────────────────────────────
+
+# Maximum chunk duration in seconds for cloud transcription
+# Models like Gemini Flash handle up to ~10-15 min well; we use 10 min
+MAX_CHUNK_SECONDS = 600  # 10 minutes
+
+
+def chunk_audio(path: Path, chunk_seconds: int = MAX_CHUNK_SECONDS) -> list[Path]:
+    """Split audio file into fixed-duration chunks.
+
+    Returns a list of paths to compressed MP3 chunk files.
+    The caller is responsible for cleaning up these temp files.
+    """
+    import tempfile as tf
+
+    # Get total duration
+    dur = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        capture_output=True, text=True,
+    )
+    total_secs = float(dur.stdout.strip())
+    num_chunks = int(total_secs // chunk_seconds) + 1
+
+    if num_chunks <= 1:
+        # No splitting needed; just compress and return single file
+        return [compress_audio_for_api(path)]
+
+    print(f"  Splitting {total_secs:.0f}s audio into {num_chunks} chunks ({chunk_seconds}s each)")
+    chunk_dir = Path(tf.mkdtemp(prefix="audio_chunks_"))
+    chunks: list[Path] = []
+
+    for i in range(num_chunks):
+        start = i * chunk_seconds
+        out_path = chunk_dir / f"chunk_{i:03d}.mp3"
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-ss", str(start),
+            "-t", str(chunk_seconds),
+            "-i", str(path),
+            "-vn", "-ar", "16000", "-ac", "1",
+            "-codec:a", "libmp3lame", "-b:a", "16k",
+            str(out_path),
+        ], check=True, capture_output=True)
+        chunks.append(out_path)
+
+    return chunks
 
 
 def get_video_duration(url: str) -> int:

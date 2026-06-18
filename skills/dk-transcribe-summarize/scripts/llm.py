@@ -1,4 +1,4 @@
-"""LLM interactions: OpenRouter transcription + LM Studio local summarization."""
+"""LLM interactions: OpenRouter transcription + cloud/local summarization with fallback."""
 
 import json
 import os
@@ -9,8 +9,8 @@ from pathlib import Path
 
 import requests
 
-from config import MODEL_NAME, LOCAL_MODEL_NAME, LMSTUDIO_URL
-from audio import compress_audio_for_api, audio_to_data_uri
+from config import MODEL_NAME, LOCAL_MODEL_NAME, LMSTUDIO_URL, SUMMARIZATION_MODELS
+from audio import audio_to_base64, chunk_audio
 
 
 # ── OpenRouter (transcription) ─────────────────────────────────────────
@@ -69,28 +69,43 @@ def openrouter_chat(
     return content.strip()
 
 
-def transcribe(audio_path: Path) -> str:
-    """Transcribe audio via OpenRouter multimodal API."""
-    raw_size = audio_path.stat().st_size
-    estimated_b64 = raw_size * 4 // 3
-    if estimated_b64 > 6_000_000:
-        print("Audio is large; compressing for API upload...")
-        audio_path = compress_audio_for_api(audio_path)
-
-    data_uri = audio_to_data_uri(audio_path)
+def _transcribe_chunk(audio_path: Path, model: str | None = None) -> str:
+    """Transcribe a single audio chunk via OpenRouter multimodal API using input_audio content type."""
+    b64_data, fmt = audio_to_base64(audio_path)
     messages = [
         {
             "role": "user",
             "content": [
-                {"type": "audio_url", "audio_url": {"url": data_uri}},
+                {
+                    "type": "input_audio",
+                    "input_audio": {
+                        "data": b64_data,
+                        "format": fmt,
+                    },
+                },
                 {
                     "type": "text",
-                    "text": "Transcribe this audio. Output only the transcription, no commentary.",
+                    "text": "Transcribe this audio segment completely and accurately. Output only the transcription text, no commentary.",
                 },
             ],
         }
     ]
-    return openrouter_chat(messages, max_tokens=10000)
+    return openrouter_chat(messages, max_tokens=10000, model=model)
+
+
+def transcribe(audio_path: Path) -> str:
+    """Transcribe audio via OpenRouter multimodal API, with automatic chunking for long files."""
+    chunks = chunk_audio(audio_path)
+    if len(chunks) == 1:
+        return _transcribe_chunk(chunks[0])
+
+    print(f"  Transcribing {len(chunks)} chunks...")
+    parts: list[str] = []
+    for i, chunk_path in enumerate(chunks):
+        print(f"    Chunk {i+1}/{len(chunks)}...")
+        text = _transcribe_chunk(chunk_path)
+        parts.append(text)
+    return " ".join(parts)
 
 
 def is_failure_response(text: str) -> bool:
@@ -102,10 +117,13 @@ def is_failure_response(text: str) -> bool:
     if not text or not text.strip():
         return True
     failure_patterns = [
-        r"\bno audio (detected|found|present)\b",
+        r"\bno audio (detected|found|present|file)\b",
         r"\bno speech detected\b",
         r"\bunable to (transcribe|process)\b",
         r"\bcannot (transcribe|process)\b",
+        r"\bdon'?t see any audio\b",
+        r"\bI don'?t see any\b",
+        r"\bI'?m not sure if I'?m going to be able\b",
     ]
     t = text.lower()
     return any(re.search(p, t) for p in failure_patterns)
@@ -126,30 +144,18 @@ class TranscriptionFailed(Exception):
 
 
 def transcribe_with_openrouter(audio_path: Path, model_id: str) -> str:
-    """Transcribe audio via OpenRouter with a specific model.
+    """Transcribe audio via OpenRouter with a specific model, with automatic chunking."""
+    chunks = chunk_audio(audio_path)
+    if len(chunks) == 1:
+        return _transcribe_chunk(chunks[0], model=model_id)
 
-    Reuses the existing compression and data-URI logic from transcribe().
-    """
-    raw_size = audio_path.stat().st_size
-    estimated_b64 = raw_size * 4 // 3
-    if estimated_b64 > 6_000_000:
-        print(f"  Audio is large; compressing for {model_id}...")
-        audio_path = compress_audio_for_api(audio_path)
-
-    data_uri = audio_to_data_uri(audio_path)
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "audio_url", "audio_url": {"url": data_uri}},
-                {
-                    "type": "text",
-                    "text": "Transcribe this audio. Output only the transcription, no commentary.",
-                },
-            ],
-        }
-    ]
-    return openrouter_chat(messages, max_tokens=10000, model=model_id)
+    print(f"  Transcribing {len(chunks)} chunks via {model_id}...")
+    parts: list[str] = []
+    for i, chunk_path in enumerate(chunks):
+        print(f"    Chunk {i+1}/{len(chunks)}...")
+        text = _transcribe_chunk(chunk_path, model=model_id)
+        parts.append(text)
+    return " ".join(parts)
 
 
 def transcribe_with_fallback(audio_path: Path) -> tuple[str, str]:
@@ -187,6 +193,65 @@ def transcribe_with_fallback(audio_path: Path) -> tuple[str, str]:
                 failures.append((name, f"Attempt {attempt+1}: {e}"))
 
     raise TranscriptionFailed(failures)
+
+
+# ── OpenRouter (cloud summarization) ────────────────────────────────
+
+
+def _is_summarization_failure(text: str) -> bool:
+    """Check if summarization output is a refusal or too short."""
+    if not text or not text.strip():
+        return True
+    t = text.lower()
+    refusal_patterns = [
+        r"\bunable to (summarize|generate|create)\b",
+        r"\bcannot (summarize|generate|create)\b",
+        r"\bi'?m not able to\b",
+        r"\bi cannot\b",
+    ]
+    if any(re.search(p, t) for p in refusal_patterns):
+        return True
+    # Too short to be a valid summary (less than ~20 words for anything >100 word target)
+    if len(text.split()) < 20:
+        return True
+    return False
+
+
+def summarize_with_openrouter(prompt: str, model: str | None = None) -> str:
+    """Summarize via OpenRouter with a text-only prompt."""
+    messages = [{"role": "user", "content": prompt}]
+    return openrouter_chat(messages, max_tokens=4000, model=model)
+
+
+def summarize_with_fallback(transcript: str, prompt: str) -> tuple[str, str]:
+    """Try OpenRouter summarization models in order, then fall back to LM Studio.
+
+    Returns (summary, model_name).
+    """
+    import time
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+
+    if api_key:
+        for name, model_id in SUMMARIZATION_MODELS:
+            for attempt in range(2):  # 1 initial + 1 retry
+                try:
+                    result = summarize_with_openrouter(prompt, model=model_id)
+                    if result and not _is_summarization_failure(result):
+                        print(f"  ✓ Summarized via {name}")
+                        return result, name
+                    break  # bad response, don't retry same model
+                except Exception as e:
+                    print(f"  ⚠️  {name} attempt {attempt+1} failed: {e}", file=sys.stderr)
+                    if attempt == 0:
+                        time.sleep(5)
+    else:
+        print("  ⚠️  OPENROUTER_API_KEY not set, skipping cloud summarization.")
+
+    # Fall back to LM Studio
+    print("  Falling back to LM Studio...")
+    ensure_lmstudio_ready(LOCAL_MODEL_NAME)
+    result = local_chat(prompt, max_tokens=4000)
+    return result, "LM Studio"
 
 
 # ── LM Studio (local summarization) ────────────────────────────────────
@@ -314,16 +379,17 @@ def local_chat(prompt: str, max_tokens: int = 2000, temperature: float = 0.3) ->
 
 
 def summarize(transcript: str, words: int) -> str:
-    """Generate a summary at the target word count using local LLM."""
+    """Generate a summary at the target word count using cloud (OpenRouter) or local (LM Studio)."""
     prompt = (
         f"Summarize the following transcript in approximately {words} words. "
         f"Output only the summary, no commentary.\n\n{transcript}"
     )
-    return local_chat(prompt, max_tokens=2000)
+    result, _model_name = summarize_with_fallback(transcript, prompt)
+    return result
 
 
 def summarize_custom(transcript: str, prompt: str) -> str:
-    """Generate a custom summary via local LLM, routed through verify_summary.
+    """Generate a custom summary using cloud (OpenRouter) or local (LM Studio).
 
     For transcripts longer than ~5,000 words, the local model's context
     window may truncate input. The function warns and proceeds; for very
@@ -331,7 +397,7 @@ def summarize_custom(transcript: str, prompt: str) -> str:
     """
     word_count = len(transcript.split())
     if word_count > 5000:
-        print(f"  \u26a0\ufe0f  Transcript is {word_count} words; custom summary may be truncated.")
+        print(f"  ⚠️  Transcript is {word_count} words; custom summary may be truncated.")
         print(f"     Consider using default 100/400-word summaries for long content.")
 
     full_prompt = (
@@ -339,5 +405,5 @@ def summarize_custom(transcript: str, prompt: str) -> str:
         f"Output only the summary, no commentary.\n\n"
         f"TRANSCRIPT:\n{transcript}"
     )
-    result = local_chat(full_prompt, max_tokens=4000)
-    return verify_summary(result, "custom", transcript=transcript)
+    result, model_name = summarize_with_fallback(transcript, full_prompt)
+    return verify_summary(result, f"custom ({model_name})", transcript=transcript)
