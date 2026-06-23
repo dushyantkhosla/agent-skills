@@ -1,6 +1,6 @@
 ---
 name: mtpk-to-issues
-description: Break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.
+description: Break a plan, spec, or PRD into independently-grabbable issues as local markdown files using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.
 metadata:
   author: Matt Pocock
 ---
@@ -9,13 +9,11 @@ metadata:
 
 Break a plan into independently-grabbable issues using vertical slices (tracer bullets).
 
-The issue tracker and triage label vocabulary should have been provided to you — run `/setup-matt-pocock-skills` if not.
-
 ## Process
 
 ### 1. Gather context
 
-Work from whatever is already in the conversation context. If the user passes an issue reference (issue number, URL, or path) as an argument, fetch it from the issue tracker and read its full body and comments.
+Work from whatever is already in the conversation context. If the user passes an issue reference (issue number, URL, or path) as an argument, read the corresponding markdown file from `docs/mattpocock/issues/`.
 
 ### 2. Explore the codebase (optional)
 
@@ -51,16 +49,20 @@ Ask the user:
 
 Iterate until the user approves the breakdown.
 
-### 5. Publish the issues to the issue tracker
+### 5. Save the issues as local markdown files
 
-For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise.
+For each approved slice, save a new issue file to `docs/mattpocock/issues/`. Create the directory if it doesn't exist. Use the filename format `YYYY-MM-DD-<slug>.md` where `<slug>` is a short dash-case description of the issue.
 
-Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field.
+Save issues in dependency order (blockers first) so you can reference real filenames in the "Blocked by" field.
 
 <issue-template>
-## Parent
-
-A reference to the parent issue on the issue tracker (if the source was an existing issue, otherwise omit this section).
+---
+title: <issue title>
+type: AFK  # AFK or HITL
+blocked_by: []  # list of filenames, e.g. ["2024-01-15-setup-db.md"]
+labels: [ready-for-agent]
+status: open
+---
 
 ## What to build
 
@@ -76,10 +78,10 @@ Avoid specific file paths or code snippets — they go stale fast. Exception: if
 
 ## Blocked by
 
-- A reference to the blocking ticket (if any)
+- A reference to the blocking issue filename (if any)
 
 Or "None - can start immediately" if no blockers.
 
 </issue-template>
 
-Do NOT close or modify any parent issue.
+Do NOT close or modify any parent issue or PRD.

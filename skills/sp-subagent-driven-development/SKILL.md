@@ -54,9 +54,11 @@ digraph process {
         "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
         "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
         "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
+        "Spec review round < MAX (3)?" [shape=diamond];
         "Implementer subagent fixes spec gaps" [shape=box];
         "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
         "Code quality reviewer subagent approves?" [shape=diamond];
+        "Quality review round < MAX (3)?" [shape=diamond];
         "Implementer subagent fixes quality issues" [shape=box];
         "Mark task complete in TodoWrite" [shape=box];
     }
@@ -73,11 +75,15 @@ digraph process {
     "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
     "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
     "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
-    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
+    "Spec reviewer subagent confirms code matches spec?" -> "Spec review round < MAX (3)?" [label="no"];
+    "Spec review round < MAX (3)?" -> "Implementer subagent fixes spec gaps" [label="yes"];
+    "Spec review round < MAX (3)?" -> "ESCALATE: Spec review stuck, human intervention needed" [label="no - max reached"];
     "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
     "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
     "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
-    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
+    "Code quality reviewer subagent approves?" -> "Quality review round < MAX (3)?" [label="no"];
+    "Quality review round < MAX (3)?" -> "Implementer subagent fixes quality issues" [label="yes"];
+    "Quality review round < MAX (3)?" -> "ESCALATE: Quality review stuck, human intervention needed" [label="no - max reached"];
     "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
     "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
     "Mark task complete in TodoWrite" -> "More tasks remain?";
@@ -103,6 +109,131 @@ Use the least powerful model that can handle each role to conserve cost and incr
 - Touches multiple files with integration concerns → standard model
 - Requires design judgment or broad codebase understanding → most capable model
 
+## Lightweight Mode for Simple Tasks
+
+For tasks that are **non-trivial** (need testing, have some logic) but **simple enough** that full two-stage review is overkill, use **Lightweight Mode**. This cuts overhead by ~60% while keeping quality guarantees.
+
+### When to Use Lightweight Mode
+
+**Use lightweight mode when ALL of these are true:**
+
+- **1-2 files** affected (highly localized change)
+- **Spec is unambiguous** (no judgment calls about requirements)
+- **No cross-system integration** (no coordination with other modules)
+- **Pattern is established** (clear how it should fit in the codebase)
+- **No architectural decisions** (just implementing what the plan specifies)
+
+**Common candidates:**
+- Adding a single function/method with clear inputs/outputs
+- Bug fix where root cause is obvious
+- Small refactor (rename, extract helper, simplify logic)
+- Adding a validation rule with clear criteria
+- Adding a new endpoint handler that follows existing patterns
+
+**Stay in full mode if:**
+- Multiple files or cross-module changes
+- Spec has open questions or ambiguity
+- Requires choosing between approaches
+- New public API or interface design
+- Changes affect existing behavior of other code paths
+
+### How Lightweight Mode Differs
+
+| Aspect | Full Mode | Lightweight Mode |
+|--------|-----------|------------------|
+| **Review stages** | 2 (spec + quality) | 1 (combined check) |
+| **Max review rounds** | 3 per stage (6 total) | 2 total |
+| **Reviewer focus** | Spec compliance + code quality | "Does it work and is it clean?" |
+| **Reviewer model** | Most capable | Standard |
+| **Implementer model** | Standard or cheap | Cheap (mechanical) |
+| **Self-review depth** | Thorough (4 categories) | Light (does it work + obvious issues) |
+| **Escalation path** | Continue rounds or escalate to human | Round 2 fails → switch to full mode or escalate |
+
+### Lightweight Mode Process
+
+```dot
+digraph lightweight_process {
+    rankdir=TB;
+
+    subgraph cluster_lightweight {
+        label="Per Task (Lightweight)";
+        "Dispatch implementer subagent (lightweight prompt)" [shape=box];
+        "Questions?" [shape=diamond];
+        "Answer & re-dispatch" [shape=box];
+        "Implement, test, commit, light self-review" [shape=box];
+        "Dispatch single reviewer subagent (combined check)" [shape=box];
+        "Reviewer approves?" [shape=diamond];
+        "Round < MAX (2)?" [shape=diamond];
+        "Implementer fixes issues" [shape=box];
+        "Mark task complete" [shape=box];
+        "ESCALATE: Switch to full mode or ask human" [shape=box style=filled fillcolor="#ffcccc"];
+    }
+
+    "Dispatch implementer subagent (lightweight prompt)" -> "Questions?";
+    "Questions?" -> "Answer & re-dispatch" [label="yes"];
+    "Answer & re-dispatch" -> "Dispatch implementer subagent (lightweight prompt)";
+    "Questions?" -> "Implement, test, commit, light self-review" [label="no"];
+    "Implement, test, commit, light self-review" -> "Dispatch single reviewer subagent (combined check)";
+    "Dispatch single reviewer subagent (combined check)" -> "Reviewer approves?";
+    "Reviewer approves?" -> "Mark task complete" [label="yes"];
+    "Reviewer approves?" -> "Round < MAX (2)?" [label="no"];
+    "Round < MAX (2)?" -> "Implementer fixes issues" [label="yes"];
+    "Round < MAX (2)?" -> "ESCALATE: Switch to full mode or ask human" [label="no - max reached"];
+    "Implementer fixes issues" -> "Dispatch single reviewer subagent (combined check)" [label="re-review"];
+}
+```
+
+### Lightweight Reviewer Prompt
+
+```
+Task tool (general-purpose):
+  description: "Lightweight review for Task N: [name]"
+  prompt: |
+    You are doing a combined review: does this code do what it should, and is it clean?
+
+    ## Task Spec
+    [FULL TEXT of task requirements]
+
+    ## Changes
+    [git diff or list of files changed]
+
+    ## Check
+    1. **Correctness:** Does it implement the spec? Any obvious bugs?
+    2. **Spec compliance:** Missing requirements? Extra features?
+    3. **Basic quality:** Clear names? No dead code? Tests exist for new behavior?
+
+    Report:
+    - ✅ Approved (works, matches spec, clean enough)
+    - ❌ Issues: [list specifically what's wrong]
+
+    Don't nitpick style. Focus on whether this is good enough to ship.
+```
+
+### When to Escalate from Lightweight to Full
+
+**Escalation triggers (switch to full mode mid-task):**
+
+- Reviewer finds issues that suggest **spec ambiguity** (not just code problems)
+- Fix in round 1 reveals the task is **larger than expected** (touched 3+ files, broke other things)
+- Reviewer says **"this needs architectural review"** or similar
+- You're about to dispatch round 2 — pause and ask: is this still a simple task?
+
+**How to switch:** Note in TodoWrite that this task upgraded to full mode, then follow the full two-stage review process for subsequent rounds.
+
+### Lightweight Mode Tradeoffs
+
+**What you save:**
+- ~60% reduction in review overhead (1 reviewer vs 2, 2 rounds vs 6)
+- Cheaper models for both implementer and reviewer
+- Faster iteration on simple tasks
+
+**What you risk:**
+- Single reviewer might miss issues a two-stage review would catch
+- "Good enough" threshold means minor issues may slip through
+- False sense of security for tasks that were actually more complex than they seemed
+
+**Mitigation:** The escalation triggers catch the cases where lightweight mode was the wrong choice. Trust them.
+
 ## Handling Implementer Status
 
 Implementer subagents report one of four statuses. Handle each appropriately:
@@ -122,11 +253,35 @@ Implementer subagents report one of four statuses. Handle each appropriately:
 
 **Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
 
+## Review Loop Limits
+
+Review loops have a **maximum of 3 rounds per stage** to prevent runaway iterations. After 3 failed reviews at the same stage, **escalate to the human** — the plan or spec may need revision.
+
+| Stage | Max Rounds | Escalation Action |
+|-------|------------|-------------------|
+| Spec compliance | 3 | Plan is ambiguous or wrong. Pause and ask human to clarify spec or break task into smaller pieces. |
+| Code quality | 3 | Implementation may need architectural rethink. Pause and ask human to decide: accept with documented exceptions, or redesign. |
+
+**How to track rounds:** Increment a counter each time you re-dispatch the same reviewer for the same stage on the same task. When the counter hits 3, stop and escalate.
+
+**Escalation format:** Report to the human with:
+- Which stage is stuck (spec or quality)
+- How many rounds have been attempted
+- What issues remain unresolved
+- Your assessment: is the spec wrong, or does the implementation need a different approach?
+
 ## Prompt Templates
 
+**Full mode (default):**
 - `./implementer-prompt.md` - Dispatch implementer subagent
 - `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
 - `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+
+**Lightweight mode (for simple tasks):**
+- `./lightweight-implementer-prompt.md` - Dispatch implementer with lighter requirements
+- `./lightweight-reviewer-prompt.md` - Single combined review pass
+
+See the "Lightweight Mode" section above for when to use which set.
 
 ## Example Workflow
 
@@ -238,7 +393,7 @@ Done!
 
 - More subagent invocations (implementer + 2 reviewers per task)
 - Controller does more prep work (extracting all tasks upfront)
-- Review loops add iterations
+- Review loops add iterations (capped at 3 per stage to prevent runaway costs)
 - But catches issues early (cheaper than debugging later)
 
 ## Red Flags
@@ -268,7 +423,7 @@ Done!
 
 - Implementer (same subagent) fixes them
 - Reviewer reviews again
-- Repeat until approved
+- Repeat until approved or **max 3 rounds per stage** — then escalate to human
 - Don't skip the re-review
 
 **If subagent fails task:**
