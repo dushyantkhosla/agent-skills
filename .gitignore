@@ -72,3 +72,4 @@ debug-*.png
 .vscode/
 .idea/
 *.code-workspace
+.skill-lock.json
