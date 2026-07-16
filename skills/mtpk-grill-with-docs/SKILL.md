@@ -7,11 +7,20 @@ metadata:
 
 <what-to-do>
 
-Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
+Interview me about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
 
 Ask the questions one at a time, waiting for feedback on each question before continuing.
 
 If a question can be answered by exploring the codebase, explore the codebase instead.
+
+### Question budget
+
+Before starting, assess the task's complexity and set a question budget:
+
+- **Simple task** (single feature, clear scope, few unknowns): ask at most **5 questions**
+- **Complex task** (cross-cutting concerns, multiple unknowns, ambiguous requirements): ask at most **10 questions**
+
+Use the budget wisely — prioritize questions that resolve the most uncertainty or block the most downstream decisions. Skip any question whose answer can be inferred from the codebase or existing docs.
 
 </what-to-do>
 

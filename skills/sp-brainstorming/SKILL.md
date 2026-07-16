@@ -77,6 +77,15 @@ digraph brainstorming {
 - Only one question per message - if a topic needs more exploration, break it into multiple questions
 - Focus on understanding: purpose, constraints, success criteria
 
+### Question budget
+
+Before asking, assess the task's complexity and set a question budget:
+
+- **Simple task** (single feature, clear scope, few unknowns): ask at most **5 questions**
+- **Complex task** (cross-cutting concerns, multiple unknowns, ambiguous requirements): ask at most **10 questions**
+
+Use the budget wisely — prioritize questions that resolve the most uncertainty or block the most downstream decisions. Skip any question whose answer can be inferred from the codebase or existing docs.
+
 **Exploring approaches:**
 
 - Propose 2-3 different approaches with trade-offs

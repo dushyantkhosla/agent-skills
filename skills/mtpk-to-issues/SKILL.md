@@ -51,7 +51,10 @@ Iterate until the user approves the breakdown.
 
 ### 5. Save the issues as local markdown files
 
-For each approved slice, save a new issue file to `docs/mattpocock/issues/`. Create the directory if it doesn't exist. Use the filename format `YYYY-MM-DD-<slug>.md` where `<slug>` is a short dash-case description of the issue.
+For each approved slice, save a new issue file to `docs/mattpocock/issues/`. Create the directory if it doesn't exist. Use the filename format `YYYY-MM-DD-<PRD-THEME>-<NUM>-<ISSUE-NAME>.md` where:
+- `<PRD-THEME>` is a short capitalized label (1-2 words max, hyphenated if two) grouping issues from the same PRD (e.g. `Auth`, `Dashboard`, `Api-V2`)
+- `<NUM>` is a zero-padded sequence number within the PRD (e.g. `01`, `02`, `03`)
+- `<ISSUE-NAME>` is a short dash-case description of the issue
 
 Save issues in dependency order (blockers first) so you can reference real filenames in the "Blocked by" field.
 
