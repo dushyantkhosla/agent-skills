@@ -73,3 +73,4 @@ debug-*.png
 .idea/
 *.code-workspace
 .skill-lock.json
+skills-old
