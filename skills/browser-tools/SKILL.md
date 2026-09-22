@@ -1,6 +1,6 @@
 ---
 name: browser-tools
-description: Interactive browser automation via Chrome DevTools Protocol. Use when you need to interact with web pages, test frontends, or when user interaction with a visible browser is required.
+description: Extract readable article content as markdown from JavaScript-rendered pages that plain HTTP fetching cannot read. Use browser-content.js when a page returns little or no text without a real browser (client-rendered apps, SPAs, search UIs). Use plain fetch for static pages. For general browser automation, frontend testing, or runtime verification, use the playwright-cli skill instead.
 ---
 
 # Browser Tools
@@ -60,6 +60,7 @@ Capture current viewport and return temporary file path. Use this to visually in
 **IMPORTANT**: Use this tool when the user wants to select specific DOM elements on the page. This launches an interactive picker that lets the user click elements to select them. The user can select multiple elements (Cmd/Ctrl+Click) and press Enter when done. The tool returns CSS selectors for the selected elements.
 
 Common use cases:
+
 - User says "I want to click that button" → Use this tool to let them select it
 - User says "extract data from these items" → Use this tool to let them select the elements
 - When you need specific selectors but the page structure is complex or ambiguous
@@ -98,14 +99,16 @@ Navigate to a URL and extract readable content as markdown. Uses Mozilla Readabi
 
 ```javascript
 // Get page structure
-document.body.innerHTML.slice(0, 5000)
+document.body.innerHTML.slice(0, 5000);
 
 // Find interactive elements
-Array.from(document.querySelectorAll('button, input, [role="button"]')).map(e => ({
-  id: e.id,
-  text: e.textContent.trim(),
-  class: e.className
-}))
+Array.from(document.querySelectorAll('button, input, [role="button"]')).map(
+    (e) => ({
+        id: e.id,
+        text: e.textContent.trim(),
+        class: e.className,
+    }),
+);
 ```
 
 ### Complex Scripts in Single Calls
@@ -113,17 +116,17 @@ Array.from(document.querySelectorAll('button, input, [role="button"]')).map(e =>
 Wrap everything in an IIFE to run multi-statement code:
 
 ```javascript
-(function() {
-  // Multiple operations
-  const data = document.querySelector('#target').textContent;
-  const buttons = document.querySelectorAll('button');
-  
-  // Interactions
-  buttons[0].click();
-  
-  // Return results
-  return JSON.stringify({ data, buttonCount: buttons.length });
-})()
+(function () {
+    // Multiple operations
+    const data = document.querySelector("#target").textContent;
+    const buttons = document.querySelectorAll("button");
+
+    // Interactions
+    buttons[0].click();
+
+    // Return results
+    return JSON.stringify({ data, buttonCount: buttons.length });
+})();
 ```
 
 ### Batch Interactions
@@ -131,24 +134,24 @@ Wrap everything in an IIFE to run multi-statement code:
 **Don't** make separate calls for each click. **Do** batch them:
 
 ```javascript
-(function() {
-  const actions = ["btn1", "btn2", "btn3"];
-  actions.forEach(id => document.getElementById(id).click());
-  return "Done";
-})()
+(function () {
+    const actions = ["btn1", "btn2", "btn3"];
+    actions.forEach((id) => document.getElementById(id).click());
+    return "Done";
+})();
 ```
 
 ### Typing/Input Sequences
 
 ```javascript
-(function() {
-  const text = "HELLO";
-  for (const char of text) {
-    document.getElementById("key-" + char).click();
-  }
-  document.getElementById("submit").click();
-  return "Submitted: " + text;
-})()
+(function () {
+    const text = "HELLO";
+    for (const char of text) {
+        document.getElementById("key-" + char).click();
+    }
+    document.getElementById("submit").click();
+    return "Submitted: " + text;
+})();
 ```
 
 ### Reading App/Game State
@@ -156,17 +159,17 @@ Wrap everything in an IIFE to run multi-statement code:
 Extract structured state in one call:
 
 ```javascript
-(function() {
-  const state = {
-    score: document.querySelector('.score')?.textContent,
-    status: document.querySelector('.status')?.className,
-    items: Array.from(document.querySelectorAll('.item')).map(el => ({
-      text: el.textContent,
-      active: el.classList.contains('active')
-    }))
-  };
-  return JSON.stringify(state, null, 2);
-})()
+(function () {
+    const state = {
+        score: document.querySelector(".score")?.textContent,
+        status: document.querySelector(".status")?.className,
+        items: Array.from(document.querySelectorAll(".item")).map((el) => ({
+            text: el.textContent,
+            active: el.classList.contains("active"),
+        })),
+    };
+    return JSON.stringify(state, null, 2);
+})();
 ```
 
 ### Waiting for Updates
@@ -182,15 +185,15 @@ sleep 0.5 && {baseDir}/browser-eval.js '...'
 Always start by understanding the page structure:
 
 ```javascript
-(function() {
-  return {
-    title: document.title,
-    forms: document.forms.length,
-    buttons: document.querySelectorAll('button').length,
-    inputs: document.querySelectorAll('input').length,
-    mainContent: document.body.innerHTML.slice(0, 3000)
-  };
-})()
+(function () {
+    return {
+        title: document.title,
+        forms: document.forms.length,
+        buttons: document.querySelectorAll("button").length,
+        inputs: document.querySelectorAll("input").length,
+        mainContent: document.body.innerHTML.slice(0, 3000),
+    };
+})();
 ```
 
 Then target specific elements based on what you find.

@@ -109,7 +109,7 @@ uv run {baseDir}/scripts/wiki.py "YOUR_TOPIC_HERE" --full --refs --toc
 
 ### Delegation Strategy
 
-For each subtopic in your research plan, spawn a research subagent. Run **up to 3 in parallel**.
+Launch all research subagents in a **single `subagent({ tasks: [...] })` call** using PARALLEL mode. Do not spawn them one at a time — the system only allows one subagent invocation per turn, so parallel mode is the only way to run concurrent research.
 
 **Subagent task template:**
 
@@ -124,10 +124,12 @@ Search angles:
 Use the search tool:
   {baseDir}/scripts/search.sh "{query}" 10
 
-For the 2-3 most important results, fetch full content:
+For the 2-3 most important results, fetch full content (captures nuance that snippets miss):
   {baseDir}/scripts/search.py "{url}" -n 1 --content
 
-Write your findings to research_{topic_slug}/findings_{subtopic_slug}.md with:
+CRITICAL: You MUST write your findings to research_{topic_slug}/findings_{subtopic_slug}.md using the write tool BEFORE finishing your session. Do not end without writing this file.
+
+Write your findings with:
 - Key claims and arguments (with attribution)
 - Notable quotes (exact text)
 - Source URLs
@@ -136,6 +138,38 @@ Write your findings to research_{topic_slug}/findings_{subtopic_slug}.md with:
 
 Budget: 3-5 searches maximum. Stop when you have enough for a balanced view.
 ```
+
+**For the 1-2 most critical sources** (especially criticism pieces and practitioner experience reports), fetch full content during Phase 2 rather than waiting for a separate deep-dive phase. Full text reveals nuance, blind spots, and verbatim quotes that search snippets miss.
+
+### Video Transcripts (Optional)
+
+For YouTube videos relevant to the article, extract transcripts directly. **Do not use the CLI tool's summarization step** — the parent agent will read and synthesize the transcripts itself.
+
+**Preferred method (direct, no dependencies):**
+
+```bash
+# Download auto-captions only (no audio download)
+yt-dlp --skip-download --write-auto-subs --sub-langs "en.*" \
+  --sub-format vtt -o "tmp_%(id)s" "https://youtube.com/watch?v=VIDEO_ID"
+
+# Clean VTT to plain text
+sed 's/<[^>]*>//g' tmp_VIDEO_ID.en.vtt | tr -s '\n' ' ' | fold -s -w 100 > tmp_VIDEO_ID.txt
+```
+
+**Fallback method (if subtitles are unavailable or garbled):**
+
+```bash
+# Use the transcription tool for audio fallback (requires OPENROUTER_API_KEY)
+cd {transcribe-skill-dir}/scripts && uv run transcribe_pdf.py "URL" --method subtitles
+```
+
+The parent agent reads the cleaned transcript text directly and synthesizes findings — no LLM API needed for summarization. This avoids the OPENROUTER/LM Studio dependency entirely. If the transcript is too large (>50K words), instruct the transcription tool to summarize as a fallback:
+
+```bash
+uv run transcribe_pdf.py "URL" --prompt "Extract: core thesis, key takeaways, notable quotes with attribution, speaker credentials."
+```
+
+**Save extracted transcripts to:** `research_{topic_slug}/transcripts/`
 
 ### What to Record Per Finding
 
@@ -153,37 +187,11 @@ If `search.sh` returns errors, wait 3-5 seconds between calls. The script auto-f
 
 ---
 
-## Phase 3: Deep Dive
 
-**Goal:** Read the most important sources in full. Search snippets lie; full text reveals nuance.
-
-### Priority Order
-
-1. **Criticism pieces** — hardest to find, most valuable for balance
-2. **Practitioner experience reports** — real-world workflow details
-3. **Official documentation** from tool vendors
-4. **Community discussions** (HN threads, Reddit)
-
-### Fetching Content
-
-```bash
-uv run {baseDir}/scripts/search.py "https://example.com/article" -n 1 --content
-```
-
-### What to Extract
-
-From each article, capture:
-- **Author's main argument** (2-3 sentences)
-- **Key evidence or data points**
-- **Notable quotes** (exact text, with attribution)
-- **What they're responding to** (context of the debate)
-- **Blind spots** (what they ignore or assume)
-
-**Save to:** `research_{topic_slug}/deep-dives.md`
 
 ---
 
-## Phase 4: Source Audit & Gap Analysis
+## Phase 3: Source Audit & Gap Analysis
 
 **Goal:** Verify balanced coverage before writing. This is the phase most workflows skip.
 
@@ -211,7 +219,27 @@ If any answer is "no", spawn one more targeted subagent to fill the gap.
 
 ---
 
-## Phase 5: Write the Article
+## Verification Gate
+
+**Goal:** Confirm all research files exist and are substantive before writing. This prevents discovering missing research mid-article.
+
+Run before Phase 4:
+
+```bash
+echo "=== Research file inventory ==="
+ls -la research_{topic_slug}/findings_*.md
+echo "=== Word counts ==="
+wc -w research_{topic_slug}/findings_*.md
+echo "=== Expected files ==="
+# Verify every subtopic from the research plan has a corresponding findings file
+grep -c 'findings_' research_{topic_slug}/research_plan.md || echo "(check manually)"
+```
+
+**If any expected findings file is missing or empty**, re-run the failed subagent task before proceeding.
+
+---
+
+## Phase 4: Write the Article
 
 **Goal:** Produce a balanced, well-structured, Wikipedia-style article with proper citations.
 
@@ -307,10 +335,9 @@ output-directory/
 │   ├── findings_{subtopic}.md     # Phase 2 (one per subagent)
 │   ├── findings_{subtopic}.md
 │   ├── ...
-│   ├── deep-dives.md              # Phase 3
-│   └── source-audit.md            # Phase 4
-├── {topic-name}.md                # Phase 5: The article
-└── {topic-name}.html              # Phase 5: HTML page (optional)
+│   └── source-audit.md            # Phase 3
+├── {topic-name}.md                # Phase 4: The article
+└── {topic-name}.html              # Phase 4: HTML page (optional)
 ```
 
 ---
@@ -321,10 +348,10 @@ output-directory/
 |---------|---------------|-----|
 | Skipping research plan | Eagerness to start searching | Phase 0 is mandatory — plan first |
 | Searching for specific names | Treating examples as exhaustive list | Search by concept angle, let voices emerge |
-| Single-threaded research | Habit | Spawn 2-3 subagents in parallel |
+| Single-threaded research | Habit | Use `subagent({ tasks: [...] })` PARALLEL mode |
 | Skipping criticism research | Confirmation bias | Make criticism a required subtopic |
-| Using only search snippets | Convenience | Fetch full articles in Phase 3 |
-| Writing before source audit | Eagerness | Phase 4 is mandatory — check balance |
+| Using only search snippets | Convenience | Fetch full articles in Phase 2 (during research) |
+| Writing before source audit | Eagerness | Verification gate + Phase 3 are mandatory — check balance |
 | Advocacy tone | Unconscious bias | "Proponents argue..." not "This is better..." |
 | Unequal section lengths | Natural enthusiasm for the positive | Explicitly balance word counts |
 
@@ -335,6 +362,7 @@ output-directory/
 Before delivering the article, verify:
 
 - [ ] **Research plan** written before searching (Phase 0)
+- [ ] **All findings files verified** (Verification Gate)
 - [ ] **2,500+ words** (comprehensive coverage)
 - [ ] **10+ sections** (all phases covered)
 - [ ] **20+ citations** (footnote-style with URLs)

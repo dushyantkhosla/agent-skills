@@ -50,6 +50,9 @@ def openrouter_chat(
         err_msg = data.get("error", {}).get("message", resp.text[:300]) if isinstance(data.get("error"), dict) else str(data.get("error", resp.text[:300]))
         last_err = f"HTTP {resp.status_code}: {err_msg}"
         print(f"  ⚠️  Attempt {attempt}/5 failed: {last_err}", file=sys.stderr)
+        # Skip retries on auth errors — the key is invalid
+        if resp.status_code in (401, 403):
+            raise RuntimeError(last_err)
         if attempt < 5:
             wait = 10 * attempt
             print(f"  Retrying in {wait}s...", file=sys.stderr)
@@ -257,7 +260,7 @@ def summarize_with_fallback(transcript: str, prompt: str) -> tuple[str, str]:
 # ── LM Studio (local summarization) ────────────────────────────────────
 
 
-def _lms(args: list[str], timeout: int = 30) -> subprocess.CompletedProcess:
+def _lms(args: list[str], timeout: int = 120) -> subprocess.CompletedProcess:
     return subprocess.run(["lms", *args], capture_output=True, text=True, timeout=timeout)
 
 
@@ -352,6 +355,20 @@ def local_chat(prompt: str, max_tokens: int = 2000, temperature: float = 0.3) ->
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
         "max_tokens": max_tokens,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "response",
+                "strict": False,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string"}
+                    },
+                    "required": ["text"]
+                }
+            }
+        },
     }
     if "qwen" in LOCAL_MODEL_NAME.lower():
         body["chat_template_kwargs"] = {"enable_thinking": False}
@@ -364,7 +381,16 @@ def local_chat(prompt: str, max_tokens: int = 2000, temperature: float = 0.3) ->
             timeout=300,
         )
         if resp.ok:
-            content = resp.json()["choices"][0]["message"]["content"] or ""
+            raw_content = resp.json()["choices"][0]["message"]["content"] or ""
+            # If response is JSON-wrapped (from structured output), extract text field
+            try:
+                parsed = json.loads(raw_content)
+                if isinstance(parsed, dict) and "text" in parsed:
+                    content = parsed["text"]
+                else:
+                    content = raw_content
+            except (json.JSONDecodeError, TypeError):
+                content = raw_content
             return _strip_thinking(content)
         # If model was unloaded, re-load and retry
         err_text = resp.text[:500]

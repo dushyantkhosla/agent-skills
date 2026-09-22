@@ -6,7 +6,7 @@ import os
 MODEL_NAME = "xiaomi/mimo-v2.5"
 
 # Local summarization model via LM Studio
-LOCAL_MODEL_NAME = os.environ.get("LOCAL_MODEL_NAME", "gemma-4-e4b-it")
+LOCAL_MODEL_NAME = os.environ.get("LOCAL_MODEL_NAME", "google/gemma-4-e4b")
 
 # LM Studio API endpoint
 LMSTUDIO_URL = "http://localhost:1234/v1"

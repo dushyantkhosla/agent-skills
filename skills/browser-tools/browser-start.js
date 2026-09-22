@@ -52,7 +52,7 @@ if (useProfile) {
 
 // Start Chrome with flags to force new instance
 spawn(
-	"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+	"/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
 	[
 		"--remote-debugging-port=9222",
 		`--user-data-dir=${SCRAPING_DIR}`,
