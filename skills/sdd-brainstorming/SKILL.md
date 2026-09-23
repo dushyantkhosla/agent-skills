@@ -1,6 +1,8 @@
 ---
 name: sdd-brainstorming
 description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+metadata:
+    opencode/autoinvoke: false
 ---
 
 # Brainstorming Ideas Into Designs
@@ -30,27 +32,28 @@ recognize and correct, grounded in what they want to accomplish.
    guess; mitigate it by being visibly willing to be wrong and
    occasionally guessing against your own expectation.
 3. **Probe "should want" answers.** When an answer sounds like what a
-   thoughtful person *should* say — best-practice talk ("scalable",
+   thoughtful person _should_ say — best-practice talk ("scalable",
    "clean"), deference to convention ("the way most apps do it") — ask:
    "If you didn't have to justify this to anyone, what would you actually
    want?" That one question often does more work than the previous five.
 4. **Write back your understanding.** Restate the intent in six lines
    your partner can confirm or correct line by line:
 
-   ```
-   Outcome:      <one line — what we're making happen>
-   User:         <one line — who benefits>
-   Why now:      <one line — what changed>
-   Success:      <one line — how we'll know it worked>
-   Constraint:   <one line — the binding limit>
-   Out of scope: <one line — what we're explicitly not doing>
-   ```
+    ```
+    Outcome:      <one line — what we're making happen>
+    User:         <one line — who benefits>
+    Why now:      <one line — what changed>
+    Success:      <one line — how we'll know it worked>
+    Constraint:   <one line — the binding limit>
+    Out of scope: <one line — what we're explicitly not doing>
+    ```
 
-   The out-of-scope line is non-negotiable: half of misalignment is
-   silent disagreement about what is *not* being built. The gate is an
-   explicit "yes" — "sounds good", "whatever you think is best", and
-   silence are not yes; ask what they would refine and loop until you
-   hear one.
+    The out-of-scope line is non-negotiable: half of misalignment is
+    silent disagreement about what is _not_ being built. The gate is an
+    explicit "yes" — "sounds good", "whatever you think is best", and
+    silence are not yes; ask what they would refine and loop until you
+    hear one.
+
 5. **Carry intent into the design.** Preserve the agreed understanding in
    the selected path's design artifact: the written spec for architectural
    work, or the in-chat design/probe for bounded work and spikes. Check
@@ -129,20 +132,20 @@ complete that path's reviews before implementation.
 
 ## Red Flags
 
-| Thought | Reality |
-|---------|---------|
-| "This is too simple to need a design" | Follow the selected path: a bounded change gets a short chat design; an architectural change gets the written spec and planning handoffs. |
-| "I'll call it bounded and skip the spec" | Reaching for a label to skip work IS the doubt — take the heavier path. |
-| "It's bounded and the design is obvious — I'll start while they read it" | The gate is the approval, not the design's length. Present, then stop until you hear yes. |
-| "I understand this kind of app, so it's bounded" | Bounded measures the repo, not your familiarity. A new project has no existing flow — it is architectural. |
-| "The spike works, so I'll keep the code" | A spike's output is an answer. Keeping the code is a new request — classify it. |
-| "It grew, but I'm almost done — no need to re-classify" | Hidden complexity upgrades the path mid-task. Stop and say so. |
-| "They approved the spike, so the follow-up change is approved too" | Each task gets its own classification and its own approval. |
-| "They answered one question, so I can infer the rest" | Stop when you can predict the next three answers, not when you are tired of asking. |
-| "'Sounds good' means we're aligned" | That is a non-yes. Restate concretely and ask what they would refine. |
-| "The terminology will sort itself out during implementation" | Resolve it now: challenge against the glossary, sharpen to a canonical term, and offer an ADR if it passes the gate. |
-| "Every decision deserves an ADR" | Only hard-to-reverse, surprising, real-trade-off decisions. Anything else is noise. |
-| "I know how this library/API works" | External facts come from primary sources, via the research subagent — not from memory. |
+| Thought                                                                  | Reality                                                                                                                                   |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| "This is too simple to need a design"                                    | Follow the selected path: a bounded change gets a short chat design; an architectural change gets the written spec and planning handoffs. |
+| "I'll call it bounded and skip the spec"                                 | Reaching for a label to skip work IS the doubt — take the heavier path.                                                                   |
+| "It's bounded and the design is obvious — I'll start while they read it" | The gate is the approval, not the design's length. Present, then stop until you hear yes.                                                 |
+| "I understand this kind of app, so it's bounded"                         | Bounded measures the repo, not your familiarity. A new project has no existing flow — it is architectural.                                |
+| "The spike works, so I'll keep the code"                                 | A spike's output is an answer. Keeping the code is a new request — classify it.                                                           |
+| "It grew, but I'm almost done — no need to re-classify"                  | Hidden complexity upgrades the path mid-task. Stop and say so.                                                                            |
+| "They approved the spike, so the follow-up change is approved too"       | Each task gets its own classification and its own approval.                                                                               |
+| "They answered one question, so I can infer the rest"                    | Stop when you can predict the next three answers, not when you are tired of asking.                                                       |
+| "'Sounds good' means we're aligned"                                      | That is a non-yes. Restate concretely and ask what they would refine.                                                                     |
+| "The terminology will sort itself out during implementation"             | Resolve it now: challenge against the glossary, sharpen to a canonical term, and offer an ADR if it passes the gate.                      |
+| "Every decision deserves an ADR"                                         | Only hard-to-reverse, surprising, real-trade-off decisions. Anything else is noise.                                                       |
+| "I know how this library/API works"                                      | External facts come from primary sources, via the research subagent — not from memory.                                                    |
 
 ## Checklist
 
@@ -150,6 +153,7 @@ Classify first, announce the path, then create a task for each item on
 your path and complete them in order.
 
 **Spike:**
+
 1. **Explore project context** — enough to frame the probe
 2. **Present question + probe plan** — 2-3 sentences; if it's a prototype, name which kind (logic/state vs look) and how you'll run it
 3. **Get approval** — a nod is enough
@@ -157,6 +161,7 @@ your path and complete them in order.
 5. **Report findings** — a recommendation; label anything built as throwaway
 
 **Bounded:**
+
 1. **Explore project context** — check files, docs, recent commits; read `CONTEXT.md` and `docs/adr/` for vocabulary and prior decisions if they exist
 2. **Ask clarifying questions** — one at a time, each with your guess attached; the ones that matter
 3. **Present short design in chat** — approach, files touched, testing
@@ -164,6 +169,7 @@ your path and complete them in order.
 5. **Implement** — proceed with the normal development workflow (TDD applies); no plan document
 
 **Architectural:**
+
 1. **Explore project context** — check files, docs, recent commits; read `CONTEXT.md` and `docs/adr/` for vocabulary and prior decisions if they exist
 2. **Ask clarifying questions** — one at a time, each with a guess attached; state a one-sentence hypothesis and confidence before the first question; understand purpose/constraints/success criteria; capture resolved terms and gate-passing decisions inline per `domain-modeling.md`
 3. **Confirm the restate** — Outcome / User / Why now / Success / Constraint / Out of scope; wait for an explicit yes
@@ -302,7 +308,7 @@ is the whole process.
 
 - Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
   using `spec-template.md` as the structure
-  - (User preferences for spec location override this default)
+    - (User preferences for spec location override this default)
 - Ensure glossary updates (`CONTEXT.md`) and the ADRs that passed the gate are
   captured and committed alongside it (`domain-modeling.md`)
 - Use elements-of-style:writing-clearly-and-concisely skill if available

@@ -1,6 +1,8 @@
 ---
 name: sdd-subagent-driven-development
 description: Use when executing implementation plans with independent tasks in the current session
+metadata:
+    opencode/autoinvoke: false
 ---
 
 # Subagent-Driven Development
@@ -51,6 +53,7 @@ digraph when_to_use {
 ```
 
 **vs. Executing Plans (inline):**
+
 - Fresh subagent per task (no context pollution) instead of one context doing every task
 - Review after each task (spec compliance + code quality) instead of only at the end
 - Costs a fresh context per task and per review; inline costs one context plus one final reviewer
@@ -220,6 +223,7 @@ complete code to write, the implementation is transcription plus testing —
 `sdd-implementer`.
 
 **Task complexity signals (implementation tasks):**
+
 - Touches 1-2 files with a complete spec → `sdd-implementer`
 - Touches multiple files with integration concerns → `sdd-implementer-standard`
 - Requires design judgment or broad codebase understanding → `sdd-implementer-standard`
@@ -308,6 +312,7 @@ A "Noticed but not touching" list in a report is observations about work outside
 **NEEDS_CONTEXT:** The implementer needs information that wasn't provided. Provide the missing context and re-dispatch.
 
 **BLOCKED:** The implementer cannot complete the task. Assess the blocker:
+
 1. If it's a context problem, provide more context and re-dispatch to the same agent
 2. If the task requires more reasoning, re-dispatch as `sdd-implementer-standard`
 3. If the task is too large, break it into smaller pieces
@@ -330,7 +335,7 @@ needed.
 - Hand the reviewer its diff as a file: run this skill's
   `bash "$SKILL_DIR/scripts/review-package" PLAN_FILE BASE HEAD` and pass
   the reviewer the file path it prints (or, without bash: `git log
-  --oneline`, `git diff --stat`, and `git diff -U10` for the range,
+--oneline`, `git diff --stat`, and `git diff -U10` for the range,
   redirected to one uniquely named file). The output never enters your own
   context, and the reviewer sees
   the commit list, stat summary, and full diff with context in one Read
@@ -364,12 +369,12 @@ needed.
   loop. If the prompt you are writing contains "do not flag," "don't treat X
   as a defect," "at most Minor," or "the plan chose" — stop: you are
   pre-judging, usually to spare yourself a review loop.
-The task reviewer may report "⚠️ Cannot verify from diff" items — requirements
-that live in unchanged code or span tasks. These do not block the rest of the
-review, but you must resolve each one yourself before marking the task
-complete: you hold the plan and cross-task context the reviewer
-lacks. If you confirm an item is a real gap, treat it as a failed spec
-review — it enters the fix loop with the other findings.
+  The task reviewer may report "⚠️ Cannot verify from diff" items — requirements
+  that live in unchanged code or span tasks. These do not block the rest of the
+  review, but you must resolve each one yourself before marking the task
+  complete: you hold the plan and cross-task context the reviewer
+  lacks. If you confirm an item is a real gap, treat it as a failed spec
+  review — it enters the fix loop with the other findings.
 
 Template: [task-reviewer-prompt.md](task-reviewer-prompt.md)
 
@@ -391,8 +396,8 @@ Before the loop starts, two routes leave it immediately:
   ledger the ruling before you act on it. Do not dismiss the finding because
   the plan mandates it, and do not dispatch a fix that contradicts the plan
   without a recorded ruling.
-Everything else enters the loop. A fix round is one fix dispatch plus one
-scoped re-review. Five rounds maximum per task:
+  Everything else enters the loop. A fix round is one fix dispatch plus one
+  scoped re-review. Five rounds maximum per task:
 
 **Rounds 1-3 — resume the original implementer.** Send it the open findings
 verbatim. Its context is intact: it knows the task, the code, and its own
@@ -547,16 +552,16 @@ Use sdd-finishing-a-development-branch.
 
 ## Common Rationalizations
 
-| Excuse | Reality |
-|--------|---------|
-| "Close enough on spec compliance" | Reviewer found spec gaps = not done. Fix or hit the cap and adjudicate — those are the only exits. |
-| "I'll fix it myself, dispatching is overhead" | Controller fixes pollute your context and skip review. Resume the implementer. |
-| "One more round will converge" | Past the cap, rounds don't converge — the failure is structural. Adjudicate and route. |
-| "The reviewer will just find something new anyway" | Scoped re-reviews verify fixes; they cannot wander. New findings on untouched code go to the ledger, not the loop. |
-| "This finding is obviously wrong, I'll drop it" | You adjudicate only at the cap, and every ruling is a ledger entry. Silent discards are forbidden. |
-| "The fix was small, skip the re-review" | Unreviewed fixes are how regressions land. Every round ends with a scoped re-review. |
-| "Reviews slow the loop down" | The loop without reviews is just unverified churn. Reviews are the loop's brakes and steering. |
-| "Ledger bookkeeping is overhead" | The ledger is what survives compaction. Controllers without one have re-dispatched entire completed task sequences. |
+| Excuse                                                            | Reality                                                                                                                               |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| "Close enough on spec compliance"                                 | Reviewer found spec gaps = not done. Fix or hit the cap and adjudicate — those are the only exits.                                    |
+| "I'll fix it myself, dispatching is overhead"                     | Controller fixes pollute your context and skip review. Resume the implementer.                                                        |
+| "One more round will converge"                                    | Past the cap, rounds don't converge — the failure is structural. Adjudicate and route.                                                |
+| "The reviewer will just find something new anyway"                | Scoped re-reviews verify fixes; they cannot wander. New findings on untouched code go to the ledger, not the loop.                    |
+| "This finding is obviously wrong, I'll drop it"                   | You adjudicate only at the cap, and every ruling is a ledger entry. Silent discards are forbidden.                                    |
+| "The fix was small, skip the re-review"                           | Unreviewed fixes are how regressions land. Every round ends with a scoped re-review.                                                  |
+| "Reviews slow the loop down"                                      | The loop without reviews is just unverified churn. Reviews are the loop's brakes and steering.                                        |
+| "Ledger bookkeeping is overhead"                                  | The ledger is what survives compaction. Controllers without one have re-dispatched entire completed task sequences.                   |
 | "The implementer spawned its own reviewer — free extra assurance" | It's a duplicate seat reviewing the same diff; the task review is the gate. A worker-spawned reviewer is a defect to flag, not rigor. |
 
 ## Example Workflow

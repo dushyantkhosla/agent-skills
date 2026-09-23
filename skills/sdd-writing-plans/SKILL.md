@@ -1,6 +1,8 @@
 ---
 name: sdd-writing-plans
 description: Use when you have a spec or requirements for a multi-step task, before touching code
+metadata:
+    opencode/autoinvoke: false
 ---
 
 # Writing Plans
@@ -16,6 +18,7 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 **Context:** If working in an isolated worktree, it should have been created via the `sdd-using-git-worktrees` skill at execution time.
 
 **Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+
 - (User preferences for plan location override this default)
 
 ## Scope Check
@@ -74,6 +77,7 @@ Strategy and Order).
 ## Bite-Sized Task Granularity
 
 **Each step is one action (2-5 minutes):**
+
 - "Write the failing test" - step
 - "Run it to make sure it fails" - step
 - "Implement the minimal code to make the test pass" - step
@@ -97,6 +101,7 @@ strategy the tasks use]
 **Tech Stack:** [Key technologies/libraries]
 
 **Commands:**
+
 - Test: [exact command]
 - Build: [exact command]
 - Lint: [exact command]
@@ -179,11 +184,13 @@ you. The rules in brief — the full rules and their examples are in
 start immediately"]
 
 **Files:**
+
 - Create: `exact/path/to/file.py`
 - Modify: `exact/path/to/existing.py:123-145`
 - Test: `tests/exact/path/to/test.py`
 
 **Interfaces:**
+
 - Consumes: [what this task uses from earlier tasks — exact signatures,
   including the invariants and error modes it must handle]
 - Produces: [what later tasks rely on — exact function names, parameter
@@ -238,6 +245,7 @@ Every step must contain the actual content an engineer needs, and every code
 block must comply with `code-guidance.md`. Complete is not the same as good:
 a violation of the guidance is a **plan failure** on the same footing as a
 placeholder. These are **plan failures** — never write them:
+
 - "TBD", "TODO", "implement later", "fill in details"
 - "Add appropriate error handling" / "add validation" / "handle edge cases"
 - "Write tests for the above" (without actual test code)
@@ -307,20 +315,22 @@ them to review the plan and choose an execution method before implementation.
 **"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Please review the plan — does it capture what you want, is the granularity right, and are the `Depends on` edges correct?"**
 
 **If Subagent-driven chosen:**
+
 - **REQUIRED SUB-SKILL:** Use sdd-subagent-driven-development
 
 **If Inline chosen:**
+
 - **REQUIRED SUB-SKILL:** Use sdd-executing-plans
 
 ## Common Rationalizations
 
-| Excuse | Reality |
-|--------|---------|
-| "I'll figure it out as I go" | Planning is the task; implementation without a plan is guessing, and guessing gets more expensive with every file touched. |
-| "The tasks are obvious, writing them down is overhead" | Explicit tasks surface the interfaces, dependencies, and exact values you would otherwise discover mid-build. |
+| Excuse                                                    | Reality                                                                                                                                 |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| "I'll figure it out as I go"                              | Planning is the task; implementation without a plan is guessing, and guessing gets more expensive with every file touched.              |
+| "The tasks are obvious, writing them down is overhead"    | Explicit tasks surface the interfaces, dependencies, and exact values you would otherwise discover mid-build.                           |
 | "Build all the schema, then all the API, then all the UI" | Horizontal slicing: no task is verifiable until the last one, and failures surface late. Cut tracer bullets through the layers instead. |
-| "Add appropriate error handling" | That is a placeholder. Show the code, or it is not a plan yet. |
-| "The plan passed self-review, so I can start" | Self-review is the author checking their own work. The gate is your human partner's review and execution choice. |
-| "I'll overwrite the old plan file, it's stale" | Unchecked steps may be mid-build in another session. Revise in place or ask. |
-| "Dependencies will emerge during implementation" | They emerge as interface mismatches and rework. Declare `Depends on` now; the pre-flight scan and the task reviewer bill you otherwise. |
-| "The API is probably the same as I remember" | A hallucinated signature is copied faithfully by every implementer. Verify against docs and cite, or mark it unverified. |
+| "Add appropriate error handling"                          | That is a placeholder. Show the code, or it is not a plan yet.                                                                          |
+| "The plan passed self-review, so I can start"             | Self-review is the author checking their own work. The gate is your human partner's review and execution choice.                        |
+| "I'll overwrite the old plan file, it's stale"            | Unchecked steps may be mid-build in another session. Revise in place or ask.                                                            |
+| "Dependencies will emerge during implementation"          | They emerge as interface mismatches and rework. Declare `Depends on` now; the pre-flight scan and the task reviewer bill you otherwise. |
+| "The API is probably the same as I remember"              | A hallucinated signature is copied faithfully by every implementer. Verify against docs and cite, or mark it unverified.                |

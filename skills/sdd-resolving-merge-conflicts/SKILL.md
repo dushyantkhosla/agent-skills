@@ -1,6 +1,8 @@
 ---
 name: sdd-resolving-merge-conflicts
 description: Use when a merge, rebase, or cherry-pick has conflicts that need resolution
+metadata:
+    opencode/autoinvoke: false
 ---
 
 # Resolving Merge Conflicts
@@ -64,24 +66,24 @@ Never leave a half-finished operation behind unannounced: finish it, or — if d
 
 ## Quick Reference
 
-| Situation | Action |
-|-----------|--------|
-| Conflict in progress | Identify merge/rebase/cherry-pick before resolving (Step 1) |
-| Unclear why a side changed | Read commits, PRs, issues; ask if unrecoverable (Step 2) |
-| Both changes compatible | Keep both (Step 3) |
-| Incompatible intents | Pick by the operation's goal; record the trade-off (Step 3) |
-| Tempted to fix something else | Don't — resolve only, then a separate change (Step 3) |
-| Tempted to `--abort` | Not a convenience exit; abort only for a wrong operation/goal or at your human partner's request (Step 3) |
-| Checks fail after resolving | Investigate with `sdd-systematic-debugging`; fix the resolution if it is the cause (Step 4) |
-| Operation half-finished | Finish it; if debugging is blocked, report exactly where it stands (Step 5) |
+| Situation                     | Action                                                                                                    |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Conflict in progress          | Identify merge/rebase/cherry-pick before resolving (Step 1)                                               |
+| Unclear why a side changed    | Read commits, PRs, issues; ask if unrecoverable (Step 2)                                                  |
+| Both changes compatible       | Keep both (Step 3)                                                                                        |
+| Incompatible intents          | Pick by the operation's goal; record the trade-off (Step 3)                                               |
+| Tempted to fix something else | Don't — resolve only, then a separate change (Step 3)                                                     |
+| Tempted to `--abort`          | Not a convenience exit; abort only for a wrong operation/goal or at your human partner's request (Step 3) |
+| Checks fail after resolving   | Investigate with `sdd-systematic-debugging`; fix the resolution if it is the cause (Step 4)               |
+| Operation half-finished       | Finish it; if debugging is blocked, report exactly where it stands (Step 5)                               |
 
 ## Common Rationalizations
 
-| Excuse | Reality |
-|--------|---------|
-| "Ours is newer — just take ours" | A conflict is a question about intent; newer isn't the same as correct, and dropping the other side's intent silently is how regressions land. |
-| "I'll merge both sides into a cleaner design" | That is a redesign smuggled into a merge. Resolve first; improve later in its own change. |
-| "`--abort` is the safe move" | Abort restores the pre-operation state — it doesn't lose either side's committed history — but it discards the context you just gathered and defers the work. Resolve; abort only when the operation itself is wrong or your human partner asks, and record why. |
-| "It compiles, so the merge is fine" | Compiling proves nothing about the paired intent. Run the project's checks. |
-| "I'll finish the rebase later" | Half-finished operations are inherited by a context with none of yours. Finish now. |
-| "That post-merge test failure is flaky" | Don't name a cause before investigating — preserve the output and follow Step 4; it may be the resolution, the updated base, or the environment. |
+| Excuse                                        | Reality                                                                                                                                                                                                                                                          |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Ours is newer — just take ours"              | A conflict is a question about intent; newer isn't the same as correct, and dropping the other side's intent silently is how regressions land.                                                                                                                   |
+| "I'll merge both sides into a cleaner design" | That is a redesign smuggled into a merge. Resolve first; improve later in its own change.                                                                                                                                                                        |
+| "`--abort` is the safe move"                  | Abort restores the pre-operation state — it doesn't lose either side's committed history — but it discards the context you just gathered and defers the work. Resolve; abort only when the operation itself is wrong or your human partner asks, and record why. |
+| "It compiles, so the merge is fine"           | Compiling proves nothing about the paired intent. Run the project's checks.                                                                                                                                                                                      |
+| "I'll finish the rebase later"                | Half-finished operations are inherited by a context with none of yours. Finish now.                                                                                                                                                                              |
+| "That post-merge test failure is flaky"       | Don't name a cause before investigating — preserve the output and follow Step 4; it may be the resolution, the updated base, or the environment.                                                                                                                 |

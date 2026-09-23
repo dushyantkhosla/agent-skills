@@ -1,6 +1,8 @@
 ---
 name: sdd-finishing-a-development-branch
 description: Use when implementation is complete, tests and CI pass, and you need to decide how to integrate the work
+metadata:
+    opencode/autoinvoke: false
 ---
 
 # Finishing a Development Branch
@@ -53,11 +55,11 @@ WORKTREE_PATH=$(git rev-parse --show-toplevel)
 
 This determines which menu to show and how cleanup works:
 
-| State | Menu | Cleanup |
-|-------|------|---------|
-| Normal repo, on a branch | Standard 3 options | No worktree to clean up |
-| Normal repo, detached HEAD | Reduced 2 options (no merge) | No worktree to clean up |
-| Linked worktree, named branch | Standard 3 options | Provenance-based (see Step 6) |
+| State                          | Menu                         | Cleanup                       |
+| ------------------------------ | ---------------------------- | ----------------------------- |
+| Normal repo, on a branch       | Standard 3 options           | No worktree to clean up       |
+| Normal repo, detached HEAD     | Reduced 2 options (no merge) | No worktree to clean up       |
+| Linked worktree, named branch  | Standard 3 options           | Provenance-based (see Step 6) |
 | Linked worktree, detached HEAD | Reduced 2 options (no merge) | Provenance-based (see Step 6) |
 
 ## Step 3: Determine Base Branch
@@ -229,28 +231,28 @@ place. If your platform provides a workspace-exit tool, use it.
 
 ## Quick Reference
 
-| Option | Merge | Push | Keep Worktree | Cleanup Branch |
-|--------|-------|------|---------------|----------------|
-| 1. Merge locally | yes | - | - | yes |
-| 2. Create PR | - | yes | yes | - |
-| 3. Keep as-is | - | - | yes | - |
-| Discard (explicit request only) | - | - | - | yes (force) |
+| Option                          | Merge | Push | Keep Worktree | Cleanup Branch |
+| ------------------------------- | ----- | ---- | ------------- | -------------- |
+| 1. Merge locally                | yes   | -    | -             | yes            |
+| 2. Create PR                    | -     | yes  | yes           | -              |
+| 3. Keep as-is                   | -     | -    | yes           | -              |
+| Discard (explicit request only) | -     | -    | -             | yes (force)    |
 
 ## Common Rationalizations
 
-| Excuse | Reality |
-|--------|---------|
-| "Tests passed earlier this session" | Run the suite on the tree you are about to integrate. A green run only proves the tree it ran on. |
-| "Local tests pass — CI is just a formality" | If the repo has CI, its verdict on the head SHA is the merge gate. Local green proves the tree, not the gate. |
-| "The failing check is flaky — I'll re-run it" | Flakes are defects. Re-running to green launders them; fix the flake or surface it. |
-| "The gate is inconvenient — I'll disable the check" | Never lower a gate to finish. If a check is wrong, fix the check in its own change. |
-| "The parked findings were already adjudicated — no need to repeat them" | Parked means ruled on, not hidden. The finish menu is where your human partner sees them; report them alongside the options. |
-| "They obviously want it merged" | Integration is your human partner's decision. Present the menu and wait. |
-| "They seem done with this feature — I'll offer to discard it" | The menu is complete as written. Discard happens only when your human partner asks for it in so many words. |
-| "'Yeah, get rid of it' counts as confirmation" | Only the typed word `discard` authorizes deletion. |
-| "The PR is up, so the worktree is clutter now" | PR feedback gets fixed in that worktree. It stays until the work lands. |
-| "This other worktree looks stale — I'll clean it too" | Clean up only worktrees under `.worktrees/` or `worktrees/`. Everything else belongs to the host. |
-| "Removal refused — `--force` is just finishing the cleanup" | The refusal means files exist only in that worktree. `--force` destroys them permanently. Show your human partner and ask. |
-| "The merged-result failure is probably flaky" | A failing merged result stops everything. Branch and worktree stay put while you investigate. |
-| "The base branch is obviously main" | Confirm the fork point or ask. Merging into the wrong base is expensive to undo. |
-| "The push was rejected — force-push will fix it" | Fetch and inspect the rejection first: protection rules, permissions, and a diverged remote all look alike. Resolve divergence via `sdd-resolving-merge-conflicts`; force-push only on your human partner's explicit request. |
+| Excuse                                                                  | Reality                                                                                                                                                                                                                       |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Tests passed earlier this session"                                     | Run the suite on the tree you are about to integrate. A green run only proves the tree it ran on.                                                                                                                             |
+| "Local tests pass — CI is just a formality"                             | If the repo has CI, its verdict on the head SHA is the merge gate. Local green proves the tree, not the gate.                                                                                                                 |
+| "The failing check is flaky — I'll re-run it"                           | Flakes are defects. Re-running to green launders them; fix the flake or surface it.                                                                                                                                           |
+| "The gate is inconvenient — I'll disable the check"                     | Never lower a gate to finish. If a check is wrong, fix the check in its own change.                                                                                                                                           |
+| "The parked findings were already adjudicated — no need to repeat them" | Parked means ruled on, not hidden. The finish menu is where your human partner sees them; report them alongside the options.                                                                                                  |
+| "They obviously want it merged"                                         | Integration is your human partner's decision. Present the menu and wait.                                                                                                                                                      |
+| "They seem done with this feature — I'll offer to discard it"           | The menu is complete as written. Discard happens only when your human partner asks for it in so many words.                                                                                                                   |
+| "'Yeah, get rid of it' counts as confirmation"                          | Only the typed word `discard` authorizes deletion.                                                                                                                                                                            |
+| "The PR is up, so the worktree is clutter now"                          | PR feedback gets fixed in that worktree. It stays until the work lands.                                                                                                                                                       |
+| "This other worktree looks stale — I'll clean it too"                   | Clean up only worktrees under `.worktrees/` or `worktrees/`. Everything else belongs to the host.                                                                                                                             |
+| "Removal refused — `--force` is just finishing the cleanup"             | The refusal means files exist only in that worktree. `--force` destroys them permanently. Show your human partner and ask.                                                                                                    |
+| "The merged-result failure is probably flaky"                           | A failing merged result stops everything. Branch and worktree stay put while you investigate.                                                                                                                                 |
+| "The base branch is obviously main"                                     | Confirm the fork point or ask. Merging into the wrong base is expensive to undo.                                                                                                                                              |
+| "The push was rejected — force-push will fix it"                        | Fetch and inspect the rejection first: protection rules, permissions, and a diverged remote all look alike. Resolve divergence via `sdd-resolving-merge-conflicts`; force-push only on your human partner's explicit request. |

@@ -1,6 +1,6 @@
 ---
 name: browser-tools
-description: Extract readable article content as markdown from JavaScript-rendered pages that plain HTTP fetching cannot read. Use browser-content.js when a page returns little or no text without a real browser (client-rendered apps, SPAs, search UIs). Use plain fetch for static pages. For general browser automation, frontend testing, or runtime verification, use the playwright-cli skill instead.
+description: Browser automation over Chrome DevTools Protocol on port 9222 — navigate, evaluate JavaScript, take screenshots, and extract readable article content as markdown from JavaScript-rendered pages that plain HTTP fetching cannot read. Its browser-nav.js and browser-eval.js scripts are called by project runtime-verification skills that connect to a browser on port 9222, so keep them available. For new Playwright-based test automation, prefer the playwright-cli skill.
 ---
 
 # Browser Tools

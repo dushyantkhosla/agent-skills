@@ -1,6 +1,8 @@
 ---
 name: sdd-verification-before-completion
 description: Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always. Also covers browser runtime, performance, production-telemetry, and spec-acceptance claims
+metadata:
+    opencode/autoinvoke: false
 ---
 
 # Verification Before Completion
@@ -52,19 +54,19 @@ agent success reports, anything you did not witness.
 
 ## Common Failures
 
-| Claim | Requires | Not Sufficient |
-|-------|----------|----------------|
-| Tests pass | Test command output: 0 failures | Previous run, "should pass" |
-| Linter clean | Linter output: 0 errors | Partial check, extrapolation |
-| Build succeeds | Build command: exit 0 | Linter passing, logs look good |
-| Bug fixed | Test original symptom: passes | Code changed, assumed fixed |
-| Regression test works | Red-green cycle verified | Test passes once |
-| Agent completed | VCS diff shows changes | Agent reports "success" |
-| Requirements met | Line-by-line checklist against the spec's Success Criteria, each criterion's command or recorded procedure run, no shipped behavior crossing an Out of Scope item | Tests passing, plan steps ticked |
-| UI works | Browser session: console clean, network correct, before/after comparison shows only intended changes | Unit tests passing, code "looks right" |
-| Optimization works | Before/after measurements by the same method, delta beats run-to-run variance | "Obviously faster", one lucky run |
-| Works in production | Post-deploy telemetry: real traffic exercised the path, RED metrics healthy, no new error class | Pre-deploy induced-failure test, staging tests |
-| End-to-end journey works | The journey run at the integration seam against the built artifact | Tests of its parts |
+| Claim                    | Requires                                                                                                                                                          | Not Sufficient                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Tests pass               | Test command output: 0 failures                                                                                                                                   | Previous run, "should pass"                    |
+| Linter clean             | Linter output: 0 errors                                                                                                                                           | Partial check, extrapolation                   |
+| Build succeeds           | Build command: exit 0                                                                                                                                             | Linter passing, logs look good                 |
+| Bug fixed                | Test original symptom: passes                                                                                                                                     | Code changed, assumed fixed                    |
+| Regression test works    | Red-green cycle verified                                                                                                                                          | Test passes once                               |
+| Agent completed          | VCS diff shows changes                                                                                                                                            | Agent reports "success"                        |
+| Requirements met         | Line-by-line checklist against the spec's Success Criteria, each criterion's command or recorded procedure run, no shipped behavior crossing an Out of Scope item | Tests passing, plan steps ticked               |
+| UI works                 | Browser session: console clean, network correct, before/after comparison shows only intended changes                                                              | Unit tests passing, code "looks right"         |
+| Optimization works       | Before/after measurements by the same method, delta beats run-to-run variance                                                                                     | "Obviously faster", one lucky run              |
+| Works in production      | Post-deploy telemetry: real traffic exercised the path, RED metrics healthy, no new error class                                                                   | Pre-deploy induced-failure test, staging tests |
+| End-to-end journey works | The journey run at the integration seam against the built artifact                                                                                                | Tests of its parts                             |
 
 ## Red Flags - STOP
 
@@ -87,40 +89,45 @@ agent success reports, anything you did not witness.
 
 ## Rationalization Prevention
 
-| Excuse | Reality |
-|--------|---------|
-| "I'm confident" | Confidence ≠ evidence |
-| "Just this once" | No exceptions |
-| "Linter passed" | Linter ≠ compiler |
-| "Tests pass, so the spec is met" | Tests check what was built; the spec checks what was promised. Run each Success Criterion's command or recorded procedure. |
-| "It's obviously faster" | Unmeasured optimizations are complexity you maintain forever. Measure or revert. |
-| "Works locally, production will be fine" | Local evidence supports local claims. Production claims need telemetry. |
-| "The extra feature was easy to add" | Out of Scope is a promise too. Unrequested behavior is surface area, and a finding. |
-| "The reviewer agreed with me" | The falsification reviewer never sees your claim. Classify its findings; don't collect its approval. |
+| Excuse                                   | Reality                                                                                                                    |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| "I'm confident"                          | Confidence ≠ evidence                                                                                                      |
+| "Just this once"                         | No exceptions                                                                                                              |
+| "Linter passed"                          | Linter ≠ compiler                                                                                                          |
+| "Tests pass, so the spec is met"         | Tests check what was built; the spec checks what was promised. Run each Success Criterion's command or recorded procedure. |
+| "It's obviously faster"                  | Unmeasured optimizations are complexity you maintain forever. Measure or revert.                                           |
+| "Works locally, production will be fine" | Local evidence supports local claims. Production claims need telemetry.                                                    |
+| "The extra feature was easy to add"      | Out of Scope is a promise too. Unrequested behavior is surface area, and a finding.                                        |
+| "The reviewer agreed with me"            | The falsification reviewer never sees your claim. Classify its findings; don't collect its approval.                       |
 
 ## Key Patterns
 
 **Tests:**
+
 ```
 ✅ [Run test command] [See: 34/34 pass] "All tests pass"
 ❌ "Should pass now" / "Looks correct"
 ```
 
 **Regression test validation (after the fix is in):**
+
 ```
 ✅ Revert fix → Run (MUST FAIL) → Restore → Run (pass)
 ❌ "I've written a regression test" (without falsification)
 ```
+
 This validates that an existing regression test catches the bug. It never
 substitutes for the implementer's BUILD-stage RED→GREEN evidence.
 
 **Runtime (UI), performance, production (companions above):**
+
 ```
 ✅ UI: console clean, network correct, only intended visual changes | Performance: same-method before/after, delta beats variance, tests green | Production: post-deploy telemetry shows the path exercised and healthy
 ❌ Unit tests for a DOM claim / "obviously faster" / staging or local evidence for production
 ```
 
 **Spec acceptance (requirements):**
+
 ```
 ✅ Re-read the spec's Confirmed Intent + Success Criteria → checklist keyed to each criterion → run each criterion's command or recorded procedure → confirm no shipped behavior crosses an Out of Scope item → report gaps
 ❌ "Tests pass, phase complete" / plan steps ticked
@@ -158,12 +165,12 @@ For those claims, run a disproof pass before the claim stands:
    fresh context available? Do not stall on a human: run the pass on yourself
    as a **degraded** substitute (rewrite artifact + contract as a fresh
    self-prompt, keep the issues-only framing), label the result degraded, and
-    record the pass as a ledger ruling where a ledger exists. In SDD, a
-    subagent that runs the pass — or cannot run one — names the outcome in
-    its report as a concern; the controller ledgers the ruling.
+   record the pass as a ledger ruling where a ledger exists. In SDD, a
+   subagent that runs the pass — or cannot run one — names the outcome in
+   its report as a concern; the controller ledgers the ruling.
 4. **Reconcile.** Findings are data, not verdict. Re-read the artifact against
    each finding, first matching class wins: **contract misread** (correct the
-   contract *against its cited source* — never weaken it — and re-run) →
+   contract _against its cited source_ — never weaken it — and re-run) →
    **actionable** (change the artifact, re-check) → **valid trade-off**
    (document it) → **noise** (note why it does not apply). If the source
    itself is ambiguous, that is a ledger ruling, not a contract rewrite. You
