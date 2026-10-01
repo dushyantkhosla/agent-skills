@@ -1,6 +1,7 @@
 ---
 name: sdd-requesting-code-review
 description: Use when a feature or branch is complete and before merging, to get an independent two-axis review (Spec + Standards); in subagent-driven or inline plan execution this is the final whole-branch review seat
+disable-model-invocation: true
 metadata:
     opencode/autoinvoke: false
 ---

@@ -1,6 +1,7 @@
 ---
 name: sdd-resolving-merge-conflicts
 description: Use when a merge, rebase, or cherry-pick has conflicts that need resolution
+disable-model-invocation: true
 metadata:
     opencode/autoinvoke: false
 ---

@@ -1,6 +1,7 @@
 ---
 name: sdd-finishing-a-development-branch
 description: Use when implementation is complete, tests and CI pass, and you need to decide how to integrate the work
+disable-model-invocation: true
 metadata:
     opencode/autoinvoke: false
 ---

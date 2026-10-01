@@ -1,6 +1,7 @@
 ---
 name: sdd-dispatching-parallel-agents
 description: Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies
+disable-model-invocation: true
 metadata:
     opencode/autoinvoke: false
 ---

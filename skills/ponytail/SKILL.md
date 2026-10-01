@@ -14,6 +14,7 @@ description: >
     use for non-coding requests (general knowledge, prose, translation,
     summaries, recipes).
 license: MIT
+disable-model-invocation: true
 metadata:
     opencode/autoinvoke: false
 ---

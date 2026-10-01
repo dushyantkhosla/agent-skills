@@ -3,6 +3,7 @@ name: caveman
 description: >
     Ultra-compressed communication mode that cuts output tokens while keeping
     technical accuracy.
+disable-model-invocation: true
 metadata:
     opencode/autoinvoke: false
 ---

@@ -1,6 +1,7 @@
 ---
 name: sdd-systematic-debugging
 description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
+disable-model-invocation: true
 metadata:
     opencode/autoinvoke: false
 ---
