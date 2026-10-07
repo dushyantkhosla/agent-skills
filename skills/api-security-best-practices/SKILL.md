@@ -4,6 +4,9 @@ description: "Implement secure API design patterns including authentication, aut
 risk: unknown
 source: community
 date_added: "2026-02-27"
+disable-model-invocation: true
+metadata:
+    opencode/autoinvoke: false
 ---
 
 # API Security Best Practices

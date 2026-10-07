@@ -6,9 +6,11 @@ description: >
     API with local models. Use when user wants local inference, offline AI, or self-hosted LLMs.
 license: MIT
 compatibility: Requires Python 3.10+, LM Studio, pydantic-ai. The `lmstudio` Python package is optional (CLI-based helpers used by default).
+disable-model-invocation: true
 metadata:
     version: "1.0.0"
     author: opencode
+    opencode/autoinvoke: false
 ---
 
 # LM Studio with Pydantic AI

@@ -3,6 +3,9 @@ name: shadcn-svelte
 description: Manages shadcn-svelte components and projects — adding, updating, fixing, debugging, styling, and composing UI. Provides project context, component docs, and usage examples. Applies when working with shadcn-svelte, the CLI, design-system presets, or any project with a components.json file. Also triggers for "shadcn-svelte init", "add component", or registry URLs.
 user-invocable: false
 allowed-tools: Bash(npx shadcn-svelte@latest *), Bash(pnpm dlx shadcn-svelte@latest *), Bash(bunx --bun shadcn-svelte@latest *)
+disable-model-invocation: true
+metadata:
+    opencode/autoinvoke: false
 ---
 
 # shadcn-svelte

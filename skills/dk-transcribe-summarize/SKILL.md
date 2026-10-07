@@ -17,11 +17,13 @@ compatibility: >
   OPENROUTER_API_KEY env var for transcription and cloud summarization.
   Python deps (auto-resolved by uv): requests, yt-dlp, fpdf2, mistune,
   webvtt-py, langdetect, mlx-whisper.
+disable-model-invocation: true
 metadata:
   author: dushyantkhosla
   model-default: gemma-4-e4b-it
   output-dir: /Users/dush/Code/transcribed/<YYYY-MM-DD>/
   formats: pdf, html, md
+  opencode/autoinvoke: false
 ---
 
 # Audio Transcribe & Summarize (PDF, HTML & Markdown)

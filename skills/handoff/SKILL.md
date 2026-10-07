@@ -7,7 +7,8 @@ metadata:
     opencode/autoinvoke: false
 ---
 
-Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to the temporary directory of the user's OS - not the current workspace.
+Write a handoff document summarising the current conversation so a fresh agent can continue the work. 
+If the user does not provide a save location, use the temporary directory of the user's OS.
 
 Include a "suggested skills" section in the document, naming which skills the next agent should call the Skill tool for.
 

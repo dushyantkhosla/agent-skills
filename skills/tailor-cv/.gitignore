@@ -1,0 +1,13 @@
+# Python (helpers run via `uv run --no-project` with PEP 723 inline
+# dependencies; no local .venv or project manifests are created)
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# RenderCV local outputs
+rendercv_output/
+*.typ
+
+# macOS
+.DS_Store

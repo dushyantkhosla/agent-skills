@@ -3,9 +3,11 @@ name: dk-wikibot
 description: Fetch, search, and extract information from Wikipedia, Wikidata, or any MediaWiki-based wiki using pywikibot. Use when the user asks to scrape Wikipedia articles or infoboxes, iterate over Wikipedia categories, query Wikidata entities and claims (structured facts), look up award winners, historical lists, or biographical data from Wikimedia projects. Also triggers on phrases like "use the wikibot skill", "look up on Wikipedia", or "query Wikidata". Does not handle live web searches, non-Wikimedia sites, or tasks requiring a logged-in Wikipedia account.
 compatibility: "Requires Python 3.8+, pywikibot, mwparserfromhell (uv add pywikibot mwparserfromhell). Read-only tasks require no credentials."
 license: Apache-2.0
+disable-model-invocation: true
 metadata:
   author: dushyantkhosla
   version: "1.0"
+  opencode/autoinvoke: false
 ---
 
 # Pywikibot Skill

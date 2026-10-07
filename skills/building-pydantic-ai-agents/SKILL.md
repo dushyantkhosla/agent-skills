@@ -6,9 +6,11 @@ description: >
   an AI agent, add tools/capabilities, stream output, define agents from YAML, or test agent behavior.
 license: MIT
 compatibility: Requires Python 3.10+
+disable-model-invocation: true
 metadata:
   version: "1.1.0"
   author: pydantic
+  opencode/autoinvoke: false
 ---
 
 # Building AI Agents with Pydantic AI

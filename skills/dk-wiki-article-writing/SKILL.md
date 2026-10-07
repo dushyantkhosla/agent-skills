@@ -4,11 +4,13 @@ description: Use when writing a Wikipedia-style article or comprehensive researc
 compatibility: "Python 3.10+ with uv. BRAVE_API_KEY env var for web search (ddgr used as primary, Brave API as fallback)."
 allowed-tools: bash, read, write, edit, subagent
 license: MIT
+disable-model-invocation: true
 metadata:
   author: dushyantkhosla
   version: "2.0"
   requires: "uv"
   optional: "BRAVE_API_KEY for web search"
+  opencode/autoinvoke: false
 ---
 
 # Wiki Article Writing

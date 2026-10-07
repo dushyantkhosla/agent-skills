@@ -14,6 +14,9 @@ description: >
   "put this in our company workspace". Agents can also buy a domain for a
   Site through here.now (no markup, DNS and SSL automatic) — use when asked
   to "buy a domain", "get me a .com for this", or "register a domain".
+disable-model-invocation: true
+metadata:
+    opencode/autoinvoke: false
 ---
 
 # here.now

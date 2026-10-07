@@ -6,7 +6,9 @@ description: Expert in building Telegram bots that solve real problems - from
   to thousands of users.
 risk: unknown
 source: vibeship-spawner-skills (Apache 2.0)
-date_added: 2026-02-27
+disable-model-invocation: true
+metadata:
+    opencode/autoinvoke: false
 ---
 
 # Telegram Bot Builder
