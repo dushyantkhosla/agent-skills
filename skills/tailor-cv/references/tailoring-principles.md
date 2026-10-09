@@ -11,7 +11,10 @@ Methodology for steps 2 and 5 of `SKILL.md`. Optimize for relevance, clarity, ev
 
 ## B. Select and reorder by relevance
 
+- Treat the source CV as an intentionally long evidence reservoir, not a draft whose full content must survive. Preserve the complete source in `master_cv.yaml`; select only JD-relevant evidence for the tailored CV, retaining essential career-history context.
 - Tailoring is partly subtraction: remove or shorten impressive but irrelevant bullets when they compete with stronger evidence.
+- Remove redundant facts and repetitive technology/skill lists. Each retained experience bullet should add distinct evidence, scope, or an outcome.
+- Rephrase or combine related bullets within the same experience when useful, preserving attribution, metrics, scope, and uncertainty. Never merge claims across employers or imply relationships not supported by the source.
 - Within each role, move the strongest job-relevant achievements to the top. Original order is not sacred.
 - Reframe an existing achievement around a relevant outcome (e.g. forecasting work as planning support) without adding new facts.
 - Adjacent experience may be emphasized (regulated-data experience for a healthcare role) but never renamed (fintech is not healthcare).
@@ -38,9 +41,14 @@ Methodology for steps 2 and 5 of `SKILL.md`. Optimize for relevance, clarity, ev
 
 ## F. Keep the result ATS-readable
 
-- Simple conventional structure, parseable sections, clear headings, conventional dates, relevant skills in context and in the skills section, minimal decorative complexity.
+- Simple conventional structure, parseable sections, clear headings, conventional dates, a concise relevant skills section and evidence-bearing experience bullets, minimal decorative complexity. Repeat a technology only when it adds meaningful context, not keyword padding.
 - Never promise ATS outcomes: do not claim the CV would pass a parse, earn a score, change a hiring decision, or be ATS-compatible. Only evidence-backed observable checks (actual `pypdf` text extraction of the rendered PDF proves readable text) and conventional design recommendations (simple structure, conventional headings, parseable sections) may be stated — never as parser-behavior or outcome guarantees. Ignore fictional ATS folklore (hidden text, exact keyword density tricks).
 
 ## G. Presentation sanity check (before returning)
 
-Check length, duplicate bullets, awkward ordering, malformed dates, orphan headings, broken rendering, repetitive wording, keyword stuffing, and extraction artifacts. For an uncertain range, use the single free-text `date: "2019–2021? (end year unclear)"` with `start_date`/`end_date` omitted (see `evidence-rules.md`); never invent a parseable year to satisfy a schema. Repair structure only — never repair a gap by inventing a fact.
+- The final rendered PDF must be at most two pages; verify the actual PDF page count, not an estimate from YAML or text.
+- If it exceeds two pages, first tighten wording and combine related bullets; then drop up to five additional experience bullets across all roles, choosing redundant or lowest-relevance evidence first. This limit applies cumulatively to page-fit trimming after initial relevance selection, not to source filtering.
+- Preserve unique evidence for high-priority JD requirements and readable typography. Preserve the supplied YAML `design:` section exactly unless the user explicitly asks to change it; it reflects their optimized aesthetic. Never meet the page limit by changing fonts, font sizes, spacing, margins, theme, or any other design setting. Fit by editing content, not design. Re-audit changed claims and re-render after revisions.
+- If the PDF still exceeds two pages after these bounded revisions, report the constraint failure rather than presenting it as a finished deliverable. See `rendercv-notes.md` for the render/check/revision loop.
+
+Check duplicate bullets, awkward ordering, malformed dates, orphan headings, broken rendering, repetitive wording, keyword stuffing, and extraction artifacts. For an uncertain range, use the single free-text `date: "2019–2021? (end year unclear)"` with `start_date`/`end_date` omitted (see `evidence-rules.md`); never invent a parseable year to satisfy a schema. Repair structure only — never repair a gap by inventing a fact.

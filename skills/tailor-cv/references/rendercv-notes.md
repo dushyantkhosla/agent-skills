@@ -52,6 +52,29 @@ Helper input is `.yaml`/`.yml`/`.json`; there is no JSON5 input variant. Each co
 - Helpers reject destination/source collisions and existing outputs unless an explicit overwrite contract applies, and never modify the input bytes.
 - Helpers implement mechanics only — never tailoring policy, keyword decisions, or claim judgments.
 
+## Preserve user design
+
+Preserve any supplied YAML `design:` section exactly unless the user explicitly requests design changes. It is user-optimized aesthetic configuration, not a page-fit control. Never change fonts, font sizes, spacing, margins, theme, or any other design setting to satisfy the two-page limit; revise content instead. If no design is supplied, choose a conventional built-in design initially and keep it fixed during page-fit revisions.
+
+The self-contained YAML safety constraints still apply: if supplied design is unsafe or invalid, stop and report the issue rather than silently replacing or repairing it. A design-change request authorizes only the requested changes, not unrelated page-fit adjustments.
+
+## Two-page publication gate
+
+The final PDF must be at most two pages. This is an agent-workflow requirement: `render_cv.py` checks PDF existence, size, and header, but does not count pages; schema validation cannot establish rendered length. Helpers remain mechanical and never choose content to remove.
+
+1. Render the audited candidate YAML to a fresh staging PDF, not the final deliverable path.
+2. Count pages in that actual PDF with `pypdf` (the same pinned dependency used by the extraction helper). Resolve the placeholder to an absolute literal:
+
+   ```sh
+   uv run --no-project --with "pypdf==6.19.0" python -c 'import sys; from pypdf import PdfReader; n = len(PdfReader(sys.argv[1]).pages); print(f"PDF pages: {n}"); sys.exit(0 if 1 <= n <= 2 else 1)' "/absolute/workspace/staging/attempt-1.pdf"
+   ```
+
+   A read/dependency error is an actionable failure, not a passing page check. Page count alone does not prove readable text or good layout; also perform the presentation checks in `tailoring-principles.md` and actual text extraction.
+3. If overlength, tighten wording and combine related bullets, then remove up to five additional experience bullets cumulatively across all attempts, following the relevance and evidence safeguards in `tailoring-principles.md`. Keep the supplied `design:` section unchanged; never adjust typography, spacing, margins, or other design settings, or alter facts, to fit.
+4. Re-audit revised claims, validate the revised YAML, and render to a new staging path (e.g. `attempt-2.pdf`). Repeat the actual page-count and presentation checks; never overwrite an earlier attempt. Keep `master_cv.yaml` immutable.
+5. Once all checks pass, publish the exact checked PDF bytes to the fresh final `tailored_cv.pdf` path using exclusive creation (never overwrite), alongside the matching finalized `tailored_cv.yaml`. Only then finalize the letter and report. Record content cuts/combinations and the observed final page count in the report.
+6. If bounded revisions cannot meet the limit, stop and report the constraint failure; do not publish an overlength attempt as the final PDF. Staging files are not final deliverables.
+
 ## Validation is structural, not factual
 
 A passing schema check proves the YAML is well-formed RenderCV, not that any career claim is true. Factual verification is the separate conservative claim audit in `references/evidence-rules.md` (source/confirmation vs. JD-only/unsupported), performed by the harness on every run. Never present validation success as a truthfulness guarantee. Never promise ATS outcomes; only evidence-backed observable checks (actual `pypdf` extraction of the rendered PDF) and conventional design recommendations may be stated.
